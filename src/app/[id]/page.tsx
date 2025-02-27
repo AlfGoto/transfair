@@ -21,7 +21,7 @@ async function getFiles(id: string): Promise<FileItem[]> {
 }
 
 export default async function Page({ params }: DownloadPageProps) {
-  const { id } = await params;
+  const { id } = params;
   const files = await getFiles(id);
   return <FileDownloader initialFiles={files} />;
 }
