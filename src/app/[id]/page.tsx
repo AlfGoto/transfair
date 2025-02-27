@@ -7,6 +7,7 @@ interface FileItem {
   url: string;
 }
 
+
 async function getFiles(id: string): Promise<FileItem[]> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_TRANSFER}/${id}`);
   if (!res.ok) {
@@ -16,7 +17,12 @@ async function getFiles(id: string): Promise<FileItem[]> {
   return files;
 }
 
-export default async function Page({ params }: { params: { id: string } }) {
+export default async function Page({
+  params,
+}: {
+  params: { id: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const { id } = params;
   const files = await getFiles(id);
   return <FileDownloader initialFiles={files} />;
