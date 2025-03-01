@@ -126,27 +126,56 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
     setError(null);
 
     try {
-      const formData = new FormData();
-      files.forEach((fileItem) => {
-        formData.append(`files`, fileItem.file, fileItem.name);
-      });
+      const filesJson = JSON.stringify(
+        files.map((file) => ({ name: file.name, type: file.type }))
+      );
+      console.log(filesJson);
 
       const myHeaders = new Headers();
       if (session?.token) myHeaders.append("credentials", session?.token);
-      const response = await fetch(apiUrl, {
+      myHeaders.append("Content-Type", "application/json");
+
+      const res = await fetch(apiUrl, {
+        body: filesJson,
         method: "POST",
-        body: formData,
         credentials: "include",
         headers: myHeaders,
       });
+      const { urls, id } = await res.json();
 
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
+      await Promise.all(
+        files.map(async (file) => {
+          const fileInfo = urls.find(
+            (item: (typeof urls)[0]) => item.filename === file.name
+          );
 
-      const result = await response.json();
-      setId(result.id);
+          try {
+            const blob =
+              file instanceof Blob
+                ? file
+                : new Blob([file.file], { type: file.type });
+            const uploadResponse = await fetch(fileInfo.uploadUrl, {
+              method: "PUT",
+              body: blob,
+              headers: {
+                "Content-Type": file.type,
+                "Content-Length": file.size.toString(),
+              },
+            });
+
+            if (!uploadResponse.ok) {
+              throw new Error(`Upload failed: ${uploadResponse.status}`);
+            }
+          } catch (error) {
+            console.error("Upload failed for", file.name, error);
+            return { success: false, filename: file.name };
+          }
+        })
+      );
+      setId(id);
       setFiles([]);
+
+      return;
     } catch (error) {
       setError("Failed to send files. Please try again.");
       console.error(error);
@@ -211,7 +240,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
               isOverLimit ? "text-destructive" : "text-muted-foreground"
             }`}
           >
-            Total size : {formatSize(totalSize)} / 2Go
+            {totalSize !== 0 && `Total size : ${formatSize(totalSize)} / 2Go`}
           </p>
         </div>
         <div className="w-full sm:w-auto">
