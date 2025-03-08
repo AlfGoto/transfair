@@ -37,10 +37,6 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
   const totalSize = files.reduce((acc, file) => acc + file.size, 0);
   const isOverLimit = totalSize > MAX_SIZE;
 
-  useEffect(() => {
-    document.title = "3F UP";
-  }, []);
-
   const handleFiles = useCallback(async (newFiles: FileList | File[]) => {
     const filePromises = Array.from(newFiles).map(async (file) => {
       const fileItem: FileItem = {
