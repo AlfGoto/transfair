@@ -2,6 +2,8 @@ import "./globals.css";
 import { Inter } from "next/font/google";
 import { Header } from "@/components/Header";
 import { Providers } from "@/components/Providers";
+import { GoogleTagManager } from "@/components/google/GoogleTagManager";
+import { IS_GTM_ENABLED } from "@/lib/google/config.tracking";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -26,6 +28,7 @@ export default function RootLayout({
         <body
           className={`${inter.className} flex min-h-full flex-col w-full bg-background text-foreground`}
         >
+          {IS_GTM_ENABLED && <GoogleTagManager />}
           <Header />
           <main className="flex-1 w-full flex">{children}</main>
         </body>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Upload, AlertCircle, Clipboard, Check } from "lucide-react";
@@ -36,10 +36,6 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
 
   const totalSize = files.reduce((acc, file) => acc + file.size, 0);
   const isOverLimit = totalSize > MAX_SIZE;
-
-  useEffect(() => {
-    document.title = "3F UP";
-  }, []);
 
   const handleFiles = useCallback(async (newFiles: FileList | File[]) => {
     const filePromises = Array.from(newFiles).map(async (file) => {

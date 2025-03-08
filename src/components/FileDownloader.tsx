@@ -19,7 +19,6 @@ export function FileDownloader({ initialFiles }: { initialFiles: FileItem[] }) {
   const objectUrls = useRef<string[]>([]);
 
   useEffect(() => {
-    document.title = "3F DOWN";
     setIsMobile(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
 
     return () => {
