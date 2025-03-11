@@ -8,12 +8,11 @@ export interface FileItem {
 }
 
 async function getFiles(id: string): Promise<FileItem[]> {
-  try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_TRANSFER}/${id}`);
     const json = await res.json();
 
     if (!res.ok) {
-      throw new Error("Failed to fetch files");
+      return notFound()
     }
 
     const files = await Promise.all(
@@ -29,9 +28,6 @@ async function getFiles(id: string): Promise<FileItem[]> {
     );
     return files;
     // eslint-disable-next-line
-  } catch (e: any) {
-    notFound();
-  }
 }
 
 export default async function Page({ params }: { params: { id: string } }) {
