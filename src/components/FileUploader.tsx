@@ -255,7 +255,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
           <div className="mt-6 p-4 bg-green-100 border border-green-300 rounded-md">
             <p className="text-green-800 font-semibold mb-2">Envoi réussi !</p>
             <p className="text-sm text-green-700 mb-2">
-              Your files are available at :
+              Your files are available for 7 days at :
             </p>
             <div className="flex items-center space-x-2">
               <Input
