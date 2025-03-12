@@ -1,42 +1,34 @@
 import { FileDownloader } from "@/components/FileDownloader";
 import { notFound } from "next/navigation";
 
-export interface FileItem {
+export interface FileMetadata {
   id: string;
   name: string;
-  data: string; // base64 encoded string
-  mimeType: string;
+  url: string;
+  type?: string; // Optional MIME type if available from API
 }
 
-async function getFiles(id: string): Promise<FileItem[]> {
+async function getFilesMetadata(id: string): Promise<FileMetadata[]> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_TRANSFER}/${id}`);
   if (!res.ok) notFound();
 
   const json = await res.json();
 
-  const files = await Promise.all(
-    json.map(async (file: { url: string; name: string }, index: number) => {
-      const response = await fetch(file.url);
-      const blob = await response.blob();
-
-      // Convert Blob to base64
-      const buffer = await blob.arrayBuffer();
-      const base64 = Buffer.from(buffer).toString("base64");
-
-      return {
-        id: `${file.name}-${index}`,
-        name: file.name,
-        data: base64,
-        mimeType: blob.type,
-      };
+  // Only return metadata and URLs, not the actual file content
+  const filesMetadata = json.map(
+    (file: { url: string; name: string }, index: number) => ({
+      id: `${file.name}-${index}`,
+      name: file.name,
+      url: file.url,
+      // If the API provides type information, include it here
     })
   );
 
-  return files;
+  return filesMetadata;
 }
 
 export default async function Page({ params }: { params: { id: string } }) {
   const { id } = params;
-  const files = await getFiles(id);
-  return <FileDownloader initialFiles={files} />;
+  const filesMetadata = await getFilesMetadata(id);
+  return <FileDownloader filesMetadata={filesMetadata} />;
 }

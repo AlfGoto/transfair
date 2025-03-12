@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
 import {
   FileText,
   X,
@@ -8,60 +9,163 @@ import {
   FileCode,
   FileJson,
   FileSpreadsheet,
+  FileArchive,
+  FileAudio,
+  FileVideo,
+  FileIcon as FilePdf,
+  FileIcon as FilePresentation,
+  FileQuestion,
+  Loader2,
+  Download,
 } from "lucide-react";
 import Image from "next/image";
 
+// Original interface, preserved for backward compatibility
 interface FilePreviewProps {
   file: {
-    file: Blob | MediaSource;
+    file?: Blob | MediaSource; // Made optional to support both versions
     id: string;
     name: string;
-    type: string;
-    size: number;
+    type?: string;
+    size?: number;
     preview?: string;
+    // New optional properties for download functionality
+    blob?: Blob;
+    progress?: number;
+    status?: "pending" | "downloading" | "complete" | "error";
   };
-  onRemove: (id: string) => void;
-  formatSize: (size: number) => string;
+  onRemove?: (id: string) => void; // Made optional
+  formatSize?: (size: number) => string;
+  // New optional props for download functionality
+  onDownload?: () => void;
+  onRetry?: () => void;
+  showDownloadProgress?: boolean;
 }
 
-export function FilePreview({ file, onRemove, formatSize }: FilePreviewProps) {
-  const getFileIcon = (type: string, name: string) => {
-    if (type.startsWith("image/"))
-      return <ImageIcon className="h-8 w-8 text-muted-foreground" />;
-    if (type.startsWith("text/"))
-      return <FileText className="h-8 w-8 text-muted-foreground" />;
-    if (name.endsWith(".json"))
-      return <FileJson className="h-8 w-8 text-muted-foreground" />;
-    if (name.endsWith(".csv"))
-      return <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />;
-    if (
-      name.endsWith(".md") ||
-      name.endsWith(".xml") ||
-      name.endsWith(".yml") ||
-      name.endsWith(".yaml")
-    ) {
-      return <FileCode className="h-8 w-8 text-muted-foreground" />;
+export function FilePreview({
+  file,
+  onRemove,
+  formatSize,
+  onDownload,
+  onRetry,
+  showDownloadProgress = false,
+}: FilePreviewProps) {
+  const getFileIcon = (type: string = "", name: string) => {
+    // Check file extension first
+    const extension = name.split(".").pop()?.toLowerCase();
+
+    // Check by extension
+    switch (extension) {
+      case "pdf":
+        return <FilePdf className="h-8 w-8 text-muted-foreground" />;
+      case "doc":
+      case "docx":
+        return <FileText className="h-8 w-8 text-muted-foreground" />;
+      case "xls":
+      case "xlsx":
+      case "csv":
+        return <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />;
+      case "ppt":
+      case "pptx":
+        return <FilePresentation className="h-8 w-8 text-muted-foreground" />;
+      case "zip":
+      case "rar":
+      case "7z":
+      case "tar":
+      case "gz":
+        return <FileArchive className="h-8 w-8 text-muted-foreground" />;
+      case "mp3":
+      case "wav":
+      case "ogg":
+      case "flac":
+        return <FileAudio className="h-8 w-8 text-muted-foreground" />;
+      case "mp4":
+      case "mov":
+      case "avi":
+      case "mkv":
+      case "webm":
+        return <FileVideo className="h-8 w-8 text-muted-foreground" />;
+      case "json":
+        return <FileJson className="h-8 w-8 text-muted-foreground" />;
+      case "js":
+      case "ts":
+      case "jsx":
+      case "tsx":
+      case "html":
+      case "css":
+      case "xml":
+      case "md":
+      case "yml":
+      case "yaml":
+        return <FileCode className="h-8 w-8 text-muted-foreground" />;
     }
-    return <FileText className="h-8 w-8 text-muted-foreground" />;
+
+    // Check by MIME type if extension didn't match
+    if (type.startsWith("image/")) {
+      return <ImageIcon className="h-8 w-8 text-muted-foreground" />;
+    } else if (type.startsWith("text/")) {
+      return <FileText className="h-8 w-8 text-muted-foreground" />;
+    } else if (type.startsWith("audio/")) {
+      return <FileAudio className="h-8 w-8 text-muted-foreground" />;
+    } else if (type.startsWith("video/")) {
+      return <FileVideo className="h-8 w-8 text-muted-foreground" />;
+    } else if (type.includes("pdf")) {
+      return <FilePdf className="h-8 w-8 text-muted-foreground" />;
+    } else if (type.includes("spreadsheet") || type.includes("csv")) {
+      return <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />;
+    } else if (type.includes("presentation")) {
+      return <FilePresentation className="h-8 w-8 text-muted-foreground" />;
+    } else if (type.includes("archive") || type.includes("zip")) {
+      return <FileArchive className="h-8 w-8 text-muted-foreground" />;
+    } else if (type.includes("json")) {
+      return <FileJson className="h-8 w-8 text-muted-foreground" />;
+    }
+
+    // Default icon
+    return <FileQuestion className="h-8 w-8 text-muted-foreground" />;
   };
 
   const renderPreview = () => {
-    if (file.type.startsWith("image/")) {
+    // Handle download in progress state (only if showDownloadProgress is true)
+    if (
+      showDownloadProgress &&
+      file.status === "downloading" &&
+      file.progress !== undefined
+    ) {
       return (
-        <div className="relative w-full h-32 sm:h-40 min-w-[50px]">
-          <Image
-            src={URL.createObjectURL(file.file)}
-            alt={file.name}
-            fill
-            style={{ objectFit: "cover" }}
-          />
+        <div className="w-full h-32 sm:h-40 bg-muted flex items-center justify-center min-w-[50px]">
+          <div className="flex flex-col items-center">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-2" />
+            <p className="text-xs text-muted-foreground">{file.progress}%</p>
+          </div>
         </div>
       );
     }
 
+    // Original functionality for image files
+    const fileToUse = file.blob || file.file;
+    if (fileToUse && typeof fileToUse !== "string") {
+      const fileType = file.type || (fileToUse as Blob).type || "";
+
+      if (fileType.startsWith("image/")) {
+        return (
+          <div className="relative w-full h-32 sm:h-40 min-w-[50px]">
+            <Image
+              src={URL.createObjectURL(fileToUse) || "/placeholder.svg"}
+              alt={file.name}
+              fill
+              style={{ objectFit: "cover" }}
+              className="rounded-md"
+            />
+          </div>
+        );
+      }
+    }
+
+    // Handle text preview or file type display
     return (
       <div className="w-full h-32 sm:h-40 bg-muted flex flex-col items-center justify-center min-w-[50px] p-4">
-        {getFileIcon(file.type, file.name)}
+        {getFileIcon(file.type || (file.file as Blob)?.type || "", file.name)}
         {file.preview ? (
           <ScrollArea className="h-full w-full rounded-md mt-2">
             <p className="text-xs text-muted-foreground font-mono p-2">
@@ -70,7 +174,7 @@ export function FilePreview({ file, onRemove, formatSize }: FilePreviewProps) {
           </ScrollArea>
         ) : (
           <span className="text-muted-foreground text-sm sm:text-base mt-2">
-            {file.type || "Unknown type"}
+            {file.type || (file.file as Blob)?.type || "Unknown type"}
           </span>
         )}
       </div>
@@ -79,24 +183,69 @@ export function FilePreview({ file, onRemove, formatSize }: FilePreviewProps) {
 
   return (
     <Card className="h-full min-w-[50px] group relative">
-      <Button
-        variant="destructive"
-        size="icon"
-        className="absolute -right-2 -top-2 z-10 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-        onClick={() => onRemove(file.id)}
-      >
-        <X className="h-4 w-4" />
-        <span className="sr-only">Remove file</span>
-      </Button>
+      {/* Original remove button */}
+      {onRemove && (
+        <Button
+          variant="destructive"
+          size="icon"
+          className="absolute -right-2 -top-2 z-10 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={() => onRemove(file.id)}
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Remove file</span>
+        </Button>
+      )}
+
+      {/* New download button (only shown if onDownload is provided) */}
+      {onDownload && file.blob && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDownload}
+          className="absolute top-2 right-2 h-8 px-2"
+        >
+          <Download className="h-4 w-4" />
+          <span className="sr-only">Download file</span>
+        </Button>
+      )}
 
       <CardContent className="p-4 flex flex-col h-full min-w-[50px]">
         {renderPreview()}
+
         <div className="mt-2 space-y-1">
           <p className="text-sm truncate">{file.name}</p>
-          <p className="text-xs text-muted-foreground">
-            {formatSize(file.size)}
-          </p>
+          {formatSize && (
+            <p className="text-xs text-muted-foreground">
+              {formatSize(
+                file.size || file.blob?.size || (file.file as Blob)?.size || 0
+              )}
+            </p>
+          )}
         </div>
+
+        {/* File download progress (only shown if showDownloadProgress is true) */}
+        {showDownloadProgress &&
+          file.status === "downloading" &&
+          file.progress !== undefined && (
+            <div className="mt-2">
+              <Progress value={file.progress} className="h-1" />
+              <p className="text-xs text-right mt-1">{file.progress}%</p>
+            </div>
+          )}
+
+        {/* Error state with retry button (only shown if showDownloadProgress and onRetry are provided) */}
+        {showDownloadProgress && file.status === "error" && onRetry && (
+          <p className="text-xs text-red-500 mt-1">
+            Download failed.
+            <Button
+              variant="link"
+              className="p-0 h-auto text-xs"
+              onClick={onRetry}
+            >
+              Try again
+            </Button>
+          </p>
+        )}
       </CardContent>
     </Card>
   );
