@@ -119,8 +119,6 @@ export const FilePreview = memo(function FilePreview({
       return <FilePdf className="h-8 w-8 text-muted-foreground" />;
     } else if (type.includes("spreadsheet") || type.includes("csv")) {
       return <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />;
-    } else if (type.includes("presentation")) {
-      return <FilePresentation className="h-8 w-8 text-muted-foreground" />;
     } else if (type.includes("archive") || type.includes("zip")) {
       return <FileArchive className="h-8 w-8 text-muted-foreground" />;
     } else if (type.includes("json")) {
@@ -137,18 +135,8 @@ export const FilePreview = memo(function FilePreview({
     file.status === "downloading" &&
     file.progress !== undefined;
 
-  // Determine if we should show image
-  const shouldShowImage =
-    file.imageUrl ||
-    (file.blob &&
-      ((file.type && file.type.startsWith("image/")) ||
-        (file.blob.type && file.blob.type.startsWith("image/")))) ||
-    // Support for original implementation
-    (file.file &&
-      typeof file.file !== "string" &&
-      ((file.type && file.type.startsWith("image/")) ||
-        ((file.file as Blob).type &&
-          (file.file as Blob).type.startsWith("image/"))));
+  // Determine if we should show image - with proper type checking
+  const shouldShowImage = file.type ? file.type.startsWith("image/") : false;
 
   // Render the preview content
   const renderPreviewContent = () => {
@@ -158,7 +146,7 @@ export const FilePreview = memo(function FilePreview({
         <div className="w-full h-32 sm:h-40 bg-muted flex items-center justify-center min-w-[50px]">
           <div className="flex flex-col items-center">
             <FileQuestion className="h-8 w-8 text-muted-foreground mb-2" />
-            <p className="text-xs text-muted-foreground">Pending...</p>
+            <p className="text-xs text-muted-foreground">En attente...</p>
           </div>
         </div>
       );
@@ -180,27 +168,39 @@ export const FilePreview = memo(function FilePreview({
     if (shouldShowImage) {
       let imageUrl = file.imageUrl;
 
-      // Try to get URL from blob or file
+      // Try to get URL from blob or file only if they are images
       if (!imageUrl) {
-        if (file.blob) {
+        if (
+          file.blob &&
+          file.blob.type &&
+          file.blob.type.startsWith("image/")
+        ) {
           imageUrl = URL.createObjectURL(file.blob);
-        } else if (file.file && typeof file.file !== "string") {
+        } else if (
+          file.file &&
+          typeof file.file !== "string" &&
+          (file.file as Blob).type &&
+          (file.file as Blob).type.startsWith("image/")
+        ) {
           imageUrl = URL.createObjectURL(file.file as Blob);
         }
       }
 
-      return (
-        <div className="relative w-full h-32 sm:h-40 min-w-[50px]">
-          <Image
-            src={imageUrl || "/placeholder.svg"}
-            alt={file.name}
-            fill
-            style={{ objectFit: "cover" }}
-            className="rounded-md"
-            unoptimized // Important to prevent Next.js from optimizing and breaking our blob URLs
-          />
-        </div>
-      );
+      // Only render Image component if we have a valid image URL
+      if (imageUrl) {
+        return (
+          <div className="relative w-full h-32 sm:h-40 min-w-[50px]">
+            <Image
+              src={imageUrl || "/placeholder.svg"}
+              alt={file.name}
+              fill
+              style={{ objectFit: "cover" }}
+              className="rounded-md"
+              unoptimized // Important to prevent Next.js from optimizing and breaking our blob URLs
+            />
+          </div>
+        );
+      }
     }
 
     // Show file type icon and preview for non-image files
@@ -236,15 +236,20 @@ export const FilePreview = memo(function FilePreview({
     );
   };
 
+  // Modifier le composant Card pour qu'il ne capture pas les clics
+  // Cela permet au clic de remonter jusqu'au parent pour la sélection
   return (
-    <Card className="h-full min-w-[50px] group relative">
+    <Card className="h-full min-w-[50px] group relative pointer-events-auto">
       {/* Original remove button */}
       {onRemove && (
         <Button
           variant="destructive"
           size="icon"
           className="absolute -right-2 -top-2 z-10 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={() => onRemove(file.id)}
+          onClick={(e) => {
+            e.stopPropagation(); // Empêcher la propagation pour éviter la sélection
+            onRemove(file.id);
+          }}
         >
           <X className="h-4 w-4" />
           <span className="sr-only">Remove file</span>
@@ -259,7 +264,10 @@ export const FilePreview = memo(function FilePreview({
           <Button
             variant="ghost"
             size="sm"
-            onClick={onDownload}
+            onClick={(e) => {
+              e.stopPropagation(); // Empêcher la propagation pour éviter la sélection
+              onDownload();
+            }}
             className="absolute top-2 right-2 h-8 px-2"
           >
             <Download className="h-4 w-4" />
@@ -302,7 +310,10 @@ export const FilePreview = memo(function FilePreview({
             <Button
               variant="link"
               className="p-0 h-auto text-xs"
-              onClick={onRetry}
+              onClick={(e) => {
+                e.stopPropagation(); // Empêcher la propagation pour éviter la sélection
+                onRetry();
+              }}
             >
               Try again
             </Button>

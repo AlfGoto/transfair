@@ -60,7 +60,7 @@ const FileItem = memo(
         objectUrlRef.current = getObjectUrl(file);
         setIsLoaded(true);
       }
-    }, [file.blob]);
+    }, [file.blob, file.id, getObjectUrl]);
 
     // Create a stable file object that won't change unless necessary properties change
     const stableFile = {
@@ -80,23 +80,30 @@ const FileItem = memo(
 
     return (
       <div className="relative">
-        <Checkbox
-          id={`file-${file.id}`}
-          checked={isSelected}
-          onCheckedChange={() => onToggleSelect(index)}
-          className="absolute top-6 left-6 z-10"
-        />
-        <FilePreview
-          file={{
-            ...stableFile,
-            // For image display, we need to provide a stable URL that won't change
-            imageUrl: objectUrlRef.current,
-          }}
-          onDownload={() => onDownloadSingle(file)}
-          onRetry={() => onRetry(file, index)}
-          formatSize={formatSize}
-          showDownloadProgress={true}
-        />
+        <div
+          className="absolute top-6 left-6 z-10 dark:bg-gray-800 rounded-md p-1"
+          onClick={(e) => e.stopPropagation()} // Empêcher la propagation pour éviter les doubles clics
+        >
+          <Checkbox
+            id={`file-${file.id}`}
+            className={isSelected ? "bg-white p-[1px] border-none" : ""}
+            checked={isSelected}
+            onCheckedChange={() => onToggleSelect(index)}
+          />
+        </div>
+        <div onClick={() => onToggleSelect(index)} className="cursor-pointer">
+          <FilePreview
+            file={{
+              ...stableFile,
+              // For image display, we need to provide a stable URL that won't change
+              imageUrl: objectUrlRef.current,
+            }}
+            onDownload={() => onDownloadSingle(file)}
+            onRetry={() => onRetry(file, index)}
+            formatSize={formatSize}
+            showDownloadProgress={true}
+          />
+        </div>
       </div>
     );
   },

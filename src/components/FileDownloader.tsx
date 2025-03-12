@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Download, Share } from "lucide-react";
+import { Loader2, Download } from "lucide-react";
 import JSZip from "jszip";
 import type { FileMetadata } from "@/app/[id]/page";
 import { FileItem, type FileWithProgress } from "./FileItem";
@@ -67,8 +67,7 @@ export function FileDownloader({
     if (files.length > 0 && !downloadInProgress.current) {
       downloadAllFiles();
     }
-    // eslint-disable-next-line
-  }, [files.length]);
+  }, [files.length]); // Only run when files array is first populated
 
   const toggleFileSelection = useCallback((index: number) => {
     setSelectedFiles((prev) =>
@@ -325,49 +324,77 @@ export function FileDownloader({
 
   const handleRetry = useCallback((file: FileWithProgress, index: number) => {
     downloadFile(file, index);
-    // eslint-disable-next-line
   }, []);
 
-  async function shareImages() {
-    // Get all image files that are ready to share
-    const filesToShare = files
-      .filter(
-        (file, index) =>
-          selectedFiles.includes(index) &&
-          file.blob &&
-          file.status === "complete" &&
-          file.blob.type.startsWith("image/")
-      )
-      .map((file) => {
-        if (!file.blob) return null;
-        return new File([file.blob], file.name, {
-          type: file.blob.type,
-        });
-      })
-      .filter(Boolean) as File[];
+  const downloadSelectedImages = async () => {
+    const selectedImagesData = files.filter(
+      (file, index) =>
+        selectedFiles.includes(index) &&
+        file.blob &&
+        file.status === "complete" &&
+        file.blob.type.startsWith("image/")
+    );
 
-    if (filesToShare.length === 0) {
-      console.warn("No images to share.");
+    if (selectedImagesData.length === 0) {
+      console.warn("No images to download.");
       return;
     }
 
-    try {
-      const shareData = {
-        files: filesToShare,
-        title: "Shared Images",
-        text: "Here are some images I'd like to share!",
-      };
-
-      await navigator.share(shareData);
-      console.log("Images shared successfully!");
-    } catch (error) {
-      console.error("Error sharing images:", error);
+    // Si une seule image, télécharger directement
+    if (selectedImagesData.length === 1) {
+      downloadSingleFile(selectedImagesData[0]);
+      return;
     }
-  }
+
+    // Sinon, créer un zip avec toutes les images
+    setIsDownloading(true);
+
+    try {
+      const zip = new JSZip();
+      const folder = zip.folder("images");
+
+      if (!folder) {
+        console.error("Failed to create folder in zip");
+        setIsDownloading(false);
+        return;
+      }
+
+      // Ajouter toutes les images au zip
+      for (const file of selectedImagesData) {
+        if (!file.blob) continue;
+        folder.file(file.name, await file.blob.arrayBuffer());
+      }
+
+      // Générer et télécharger le fichier zip
+      const zipBlob = await zip.generateAsync({
+        type: "blob",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 },
+      });
+
+      const zipUrl = URL.createObjectURL(zipBlob);
+
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = zipUrl;
+      a.download = "images.zip";
+      document.body.appendChild(a);
+      a.click();
+
+      document.body.removeChild(a);
+
+      // Révoquer l'URL après un délai pour s'assurer que le téléchargement commence
+      setTimeout(() => URL.revokeObjectURL(zipUrl), 5000);
+    } catch (error) {
+      console.error("Error downloading images:", error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   if (isDownloading) {
     return (
-      <div className="w-full flex flex-col items-center justify-center min-h-[50vh] py-12">
+      <div className="flex flex-col items-center justify-center min-h-[50vh] py-12">
         <Loader2 className="w-12 h-12 sm:w-16 sm:h-16 animate-spin mb-4" />
         <h2 className="text-xl sm:text-2xl font-bold mb-2">
           Preparing Download
@@ -403,15 +430,14 @@ export function FileDownloader({
           Download Selected Files
         </Button>
         {isMobile &&
-          navigator.share &&
           files.some((file) => file.blob?.type?.startsWith("image/")) && (
             <Button
-              onClick={shareImages}
+              onClick={downloadSelectedImages}
               className="w-full sm:w-auto"
               disabled={selectedFiles.length === 0}
             >
-              <Share className="mr-2 h-4 w-4" />
-              Share Selected Images
+              <Download className="mr-2 h-4 w-4" />
+              Save Selected Images
             </Button>
           )}
       </div>
