@@ -1,21 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Loader2, Download, Share } from "lucide-react";
 import JSZip from "jszip";
-import { FilePreview } from "./FilePreview";
 import type { FileMetadata } from "@/app/[id]/page";
-
-interface FileWithProgress extends FileMetadata {
-  blob?: Blob;
-  progress: number;
-  status: "pending" | "downloading" | "complete" | "error";
-  preview?: string; // For text files
-}
+import { FileItem, type FileWithProgress } from "./FileItem";
 
 export function FileDownloader({
   filesMetadata,
@@ -28,7 +20,7 @@ export function FileDownloader({
   const [isMobile, setIsMobile] = useState(false);
   const [totalProgress, setTotalProgress] = useState(0);
   const router = useRouter();
-  const objectUrls = useRef<string[]>([]);
+  const downloadInProgress = useRef(false);
 
   // Initialize files with progress tracking
   useEffect(() => {
@@ -41,31 +33,48 @@ export function FileDownloader({
     );
 
     setIsMobile(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
-
-    return () => {
-      // Clean up object URLs to prevent memory leaks
-      objectUrls.current.forEach(URL.revokeObjectURL);
-      objectUrls.current = [];
-    };
   }, [filesMetadata]);
 
   // Start downloading all files immediately
   useEffect(() => {
     const downloadAllFiles = async () => {
-      // Download files in parallel
-      await Promise.all(files.map((file, index) => downloadFile(file, index)));
+      if (downloadInProgress.current) return;
+      downloadInProgress.current = true;
+
+      try {
+        // Download files in parallel with a limit of 3 concurrent downloads
+        const chunks = [];
+        const chunkSize = 3; // Number of concurrent downloads
+
+        for (let i = 0; i < files.length; i += chunkSize) {
+          const chunk = files.slice(i, i + chunkSize);
+          chunks.push(chunk);
+        }
+
+        for (const chunk of chunks) {
+          await Promise.all(
+            chunk.map((file) => {
+              const fileIndex = files.findIndex((f) => f.id === file.id);
+              return downloadFile(file, fileIndex);
+            })
+          );
+        }
+      } finally {
+        downloadInProgress.current = false;
+      }
     };
 
-    if (files.length > 0) {
+    if (files.length > 0 && !downloadInProgress.current) {
       downloadAllFiles();
     }
-  }, [files.length]); // Only run when files array is first populated
+    // eslint-disable-next-line
+  }, [files.length]);
 
-  const toggleFileSelection = (index: number) => {
+  const toggleFileSelection = useCallback((index: number) => {
     setSelectedFiles((prev) =>
       prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
     );
-  };
+  }, []);
 
   const downloadFile = async (file: FileWithProgress, index: number) => {
     if (file.status === "downloading" || file.status === "complete")
@@ -91,7 +100,6 @@ export function FileDownloader({
       let receivedLength = 0;
       const chunks: Uint8Array[] = [];
 
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read();
 
@@ -177,11 +185,10 @@ export function FileDownloader({
     setTotalProgress(Math.round(totalProgress));
   };
 
-  const downloadSingleFile = (file: FileWithProgress) => {
+  const downloadSingleFile = useCallback((file: FileWithProgress) => {
     if (!file.blob) return;
 
     const url = URL.createObjectURL(file.blob);
-    objectUrls.current.push(url);
 
     const a = document.createElement("a");
     a.style.display = "none";
@@ -191,7 +198,10 @@ export function FileDownloader({
     a.click();
 
     document.body.removeChild(a);
-  };
+
+    // We don't revoke the URL immediately to prevent issues with download
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }, []);
 
   const downloadSelectedFiles = async () => {
     setIsDownloading(true);
@@ -231,8 +241,7 @@ export function FileDownloader({
         compressionOptions: { level: 6 },
       });
 
-      const zipUrl = window.URL.createObjectURL(zipBlob);
-      objectUrls.current.push(zipUrl);
+      const zipUrl = URL.createObjectURL(zipBlob);
 
       const a = document.createElement("a");
       a.style.display = "none";
@@ -242,6 +251,9 @@ export function FileDownloader({
       a.click();
 
       document.body.removeChild(a);
+
+      // Revoke URL after a delay to ensure download starts
+      setTimeout(() => URL.revokeObjectURL(zipUrl), 5000);
     } catch (error) {
       console.error("Error downloading files:", error);
     } finally {
@@ -283,8 +295,7 @@ export function FileDownloader({
         compressionOptions: { level: 6 },
       });
 
-      const zipUrl = window.URL.createObjectURL(zipBlob);
-      objectUrls.current.push(zipUrl);
+      const zipUrl = URL.createObjectURL(zipBlob);
 
       const a = document.createElement("a");
       a.style.display = "none";
@@ -294,6 +305,9 @@ export function FileDownloader({
       a.click();
 
       document.body.removeChild(a);
+
+      // Revoke URL after a delay to ensure download starts
+      setTimeout(() => URL.revokeObjectURL(zipUrl), 5000);
     } catch (error) {
       console.error("Error downloading files:", error);
     } finally {
@@ -301,13 +315,18 @@ export function FileDownloader({
     }
   };
 
-  const formatSize = (size: number): string => {
+  const formatSize = useCallback((size: number): string => {
     if (size < 1024) return `${size} B`;
     if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
     if (size < 1024 * 1024 * 1024)
       return `${(size / (1024 * 1024)).toFixed(1)} MB`;
     return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-  };
+  }, []);
+
+  const handleRetry = useCallback((file: FileWithProgress, index: number) => {
+    downloadFile(file, index);
+    // eslint-disable-next-line
+  }, []);
 
   async function shareImages() {
     // Get all image files that are ready to share
@@ -348,7 +367,7 @@ export function FileDownloader({
 
   if (isDownloading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] py-12">
+      <div className="w-full flex flex-col items-center justify-center min-h-[50vh] py-12">
         <Loader2 className="w-12 h-12 sm:w-16 sm:h-16 animate-spin mb-4" />
         <h2 className="text-xl sm:text-2xl font-bold mb-2">
           Preparing Download
@@ -409,21 +428,16 @@ export function FileDownloader({
       <div className="mt-6">
         <div className="grid grid-cols-1 min-[400px]:grid-cols-2 md:grid-cols-3 gap-4">
           {files.map((file, index) => (
-            <div key={file.id} className="relative">
-              <Checkbox
-                id={`file-${file.id}`}
-                checked={selectedFiles.includes(index)}
-                onCheckedChange={() => toggleFileSelection(index)}
-                className="absolute top-6 left-6 z-10"
-              />
-              <FilePreview
-                file={file}
-                onDownload={() => downloadSingleFile(file)}
-                onRetry={() => downloadFile(file, index)}
-                formatSize={formatSize}
-                showDownloadProgress={true}
-              />
-            </div>
+            <FileItem
+              key={file.id}
+              file={file}
+              index={index}
+              isSelected={selectedFiles.includes(index)}
+              onToggleSelect={toggleFileSelection}
+              onDownloadSingle={downloadSingleFile}
+              onRetry={handleRetry}
+              formatSize={formatSize}
+            />
           ))}
         </div>
       </div>

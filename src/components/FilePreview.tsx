@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,6 +21,7 @@ import {
   Download,
 } from "lucide-react";
 import Image from "next/image";
+import { memo } from "react";
 
 // Original interface, preserved for backward compatibility
 interface FilePreviewProps {
@@ -33,6 +36,8 @@ interface FilePreviewProps {
     blob?: Blob;
     progress?: number;
     status?: "pending" | "downloading" | "complete" | "error";
+    // New property for stable image URLs
+    imageUrl?: string | null;
   };
   onRemove?: (id: string) => void; // Made optional
   formatSize?: (size: number) => string;
@@ -42,7 +47,8 @@ interface FilePreviewProps {
   showDownloadProgress?: boolean;
 }
 
-export function FilePreview({
+// Memoized FilePreview component to prevent unnecessary re-renders
+export const FilePreview = memo(function FilePreview({
   file,
   onRemove,
   formatSize,
@@ -50,7 +56,7 @@ export function FilePreview({
   onRetry,
   showDownloadProgress = false,
 }: FilePreviewProps) {
-  const getFileIcon = (type: string = "", name: string) => {
+  const getFileIcon = (type = "", name: string) => {
     // Check file extension first
     const extension = name.split(".").pop()?.toLowerCase();
 
@@ -125,13 +131,41 @@ export function FilePreview({
     return <FileQuestion className="h-8 w-8 text-muted-foreground" />;
   };
 
-  const renderPreview = () => {
-    // Handle download in progress state (only if showDownloadProgress is true)
-    if (
-      showDownloadProgress &&
-      file.status === "downloading" &&
-      file.progress !== undefined
-    ) {
+  // Determine if we should show loading state
+  const shouldShowLoading =
+    showDownloadProgress &&
+    file.status === "downloading" &&
+    file.progress !== undefined;
+
+  // Determine if we should show image
+  const shouldShowImage =
+    file.imageUrl ||
+    (file.blob &&
+      ((file.type && file.type.startsWith("image/")) ||
+        (file.blob.type && file.blob.type.startsWith("image/")))) ||
+    // Support for original implementation
+    (file.file &&
+      typeof file.file !== "string" &&
+      ((file.type && file.type.startsWith("image/")) ||
+        ((file.file as Blob).type &&
+          (file.file as Blob).type.startsWith("image/"))));
+
+  // Render the preview content
+  const renderPreviewContent = () => {
+    // Show pending state
+    if (showDownloadProgress && file.status === "pending") {
+      return (
+        <div className="w-full h-32 sm:h-40 bg-muted flex items-center justify-center min-w-[50px]">
+          <div className="flex flex-col items-center">
+            <FileQuestion className="h-8 w-8 text-muted-foreground mb-2" />
+            <p className="text-xs text-muted-foreground">Pending...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Show loading state
+    if (shouldShowLoading && !file.imageUrl) {
       return (
         <div className="w-full h-32 sm:h-40 bg-muted flex items-center justify-center min-w-[50px]">
           <div className="flex flex-col items-center">
@@ -142,30 +176,45 @@ export function FilePreview({
       );
     }
 
-    // Original functionality for image files
-    const fileToUse = file.blob || file.file;
-    if (fileToUse && typeof fileToUse !== "string") {
-      const fileType = file.type || (fileToUse as Blob).type || "";
+    // Show image if we have a URL or blob and it's an image
+    if (shouldShowImage) {
+      let imageUrl = file.imageUrl;
 
-      if (fileType.startsWith("image/")) {
-        return (
-          <div className="relative w-full h-32 sm:h-40 min-w-[50px]">
-            <Image
-              src={URL.createObjectURL(fileToUse) || "/placeholder.svg"}
-              alt={file.name}
-              fill
-              style={{ objectFit: "cover" }}
-              className="rounded-md"
-            />
-          </div>
-        );
+      // Try to get URL from blob or file
+      if (!imageUrl) {
+        if (file.blob) {
+          imageUrl = URL.createObjectURL(file.blob);
+        } else if (file.file && typeof file.file !== "string") {
+          imageUrl = URL.createObjectURL(file.file as Blob);
+        }
       }
+
+      return (
+        <div className="relative w-full h-32 sm:h-40 min-w-[50px]">
+          <Image
+            src={imageUrl || "/placeholder.svg"}
+            alt={file.name}
+            fill
+            style={{ objectFit: "cover" }}
+            className="rounded-md"
+            unoptimized // Important to prevent Next.js from optimizing and breaking our blob URLs
+          />
+        </div>
+      );
     }
 
-    // Handle text preview or file type display
+    // Show file type icon and preview for non-image files
     return (
       <div className="w-full h-32 sm:h-40 bg-muted flex flex-col items-center justify-center min-w-[50px] p-4">
-        {getFileIcon(file.type || (file.file as Blob)?.type || "", file.name)}
+        {getFileIcon(
+          file.type ||
+            file.blob?.type ||
+            "" ||
+            (file.file && typeof file.file !== "string"
+              ? (file.file as Blob).type || ""
+              : ""),
+          file.name
+        )}
         {file.preview ? (
           <ScrollArea className="h-full w-full rounded-md mt-2">
             <p className="text-xs text-muted-foreground font-mono p-2">
@@ -174,7 +223,13 @@ export function FilePreview({
           </ScrollArea>
         ) : (
           <span className="text-muted-foreground text-sm sm:text-base mt-2">
-            {file.type || (file.file as Blob)?.type || "Unknown type"}
+            {file.type ||
+              file.blob?.type ||
+              "" ||
+              (file.file && typeof file.file !== "string"
+                ? (file.file as Blob).type || ""
+                : "") ||
+              "Unknown type"}
           </span>
         )}
       </div>
@@ -197,27 +252,34 @@ export function FilePreview({
       )}
 
       {/* New download button (only shown if onDownload is provided) */}
-      {onDownload && file.blob && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onDownload}
-          className="absolute top-2 right-2 h-8 px-2"
-        >
-          <Download className="h-4 w-4" />
-          <span className="sr-only">Download file</span>
-        </Button>
-      )}
+      {onDownload &&
+        (file.blob ||
+          file.imageUrl ||
+          (file.file && typeof file.file !== "string")) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDownload}
+            className="absolute top-2 right-2 h-8 px-2"
+          >
+            <Download className="h-4 w-4" />
+            <span className="sr-only">Download file</span>
+          </Button>
+        )}
 
       <CardContent className="p-4 flex flex-col h-full min-w-[50px]">
-        {renderPreview()}
+        {renderPreviewContent()}
 
         <div className="mt-2 space-y-1">
           <p className="text-sm truncate">{file.name}</p>
           {formatSize && (
             <p className="text-xs text-muted-foreground">
               {formatSize(
-                file.size || file.blob?.size || (file.file as Blob)?.size || 0
+                file.size ||
+                  file.blob?.size ||
+                  (file.file && typeof file.file !== "string"
+                    ? (file.file as Blob).size || 0
+                    : 0)
               )}
             </p>
           )}
@@ -249,4 +311,4 @@ export function FilePreview({
       </CardContent>
     </Card>
   );
-}
+});
