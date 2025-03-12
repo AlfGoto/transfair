@@ -326,69 +326,45 @@ export function FileDownloader({
     downloadFile(file, index);
   }, []);
 
-  const downloadSelectedImages = async () => {
-    const selectedImagesData = files.filter(
-      (file, index) =>
-        selectedFiles.includes(index) &&
+  const shareAllImages = async () => {
+    // Filtrer tous les fichiers qui sont des images terminées
+    const imageFilesData = files.filter(
+      (file) =>
         file.blob &&
         file.status === "complete" &&
-        file.blob.type.startsWith("image/")
+        file.type &&
+        file.type.startsWith("image/")
     );
 
-    if (selectedImagesData.length === 0) {
-      console.warn("No images to download.");
+    if (imageFilesData.length === 0) {
+      console.warn("Aucune image à partager.");
       return;
     }
 
-    // Si une seule image, télécharger directement
-    if (selectedImagesData.length === 1) {
-      downloadSingleFile(selectedImagesData[0]);
-      return;
-    }
+    // Créer un tableau d'objets File pour le partage
+    const shareFiles = imageFilesData.map(
+      (file) => new File([file.blob!], file.name, { type: file.type })
+    );
 
-    // Sinon, créer un zip avec toutes les images
-    setIsDownloading(true);
-
-    try {
-      const zip = new JSZip();
-      const folder = zip.folder("images");
-
-      if (!folder) {
-        console.error("Failed to create folder in zip");
-        setIsDownloading(false);
-        return;
+    // Vérifier si la fonction de partage de fichiers est disponible sur l'appareil
+    if (
+      navigator.share &&
+      navigator.canShare &&
+      navigator.canShare({ files: shareFiles })
+    ) {
+      try {
+        await navigator.share({
+          files: shareFiles,
+          title: "Partager mes images",
+          text: "Voici toutes les images de ma caméra !",
+        });
+      } catch (error) {
+        console.error("Erreur lors du partage des images :", error);
       }
-
-      // Ajouter toutes les images au zip
-      for (const file of selectedImagesData) {
-        if (!file.blob) continue;
-        folder.file(file.name, await file.blob.arrayBuffer());
-      }
-
-      // Générer et télécharger le fichier zip
-      const zipBlob = await zip.generateAsync({
-        type: "blob",
-        compression: "DEFLATE",
-        compressionOptions: { level: 6 },
-      });
-
-      const zipUrl = URL.createObjectURL(zipBlob);
-
-      const a = document.createElement("a");
-      a.style.display = "none";
-      a.href = zipUrl;
-      a.download = "images.zip";
-      document.body.appendChild(a);
-      a.click();
-
-      document.body.removeChild(a);
-
-      // Révoquer l'URL après un délai pour s'assurer que le téléchargement commence
-      setTimeout(() => URL.revokeObjectURL(zipUrl), 5000);
-    } catch (error) {
-      console.error("Error downloading images:", error);
-    } finally {
-      setIsDownloading(false);
+    } else {
+      console.warn(
+        "Le partage de fichiers n'est pas supporté sur cet appareil."
+      );
     }
   };
 
@@ -431,13 +407,9 @@ export function FileDownloader({
         </Button>
         {isMobile &&
           files.some((file) => file.blob?.type?.startsWith("image/")) && (
-            <Button
-              onClick={downloadSelectedImages}
-              className="w-full sm:w-auto"
-              disabled={selectedFiles.length === 0}
-            >
+            <Button onClick={shareAllImages} className="w-full sm:w-auto">
               <Download className="mr-2 h-4 w-4" />
-              Save Selected Images
+              Save Images
             </Button>
           )}
       </div>
