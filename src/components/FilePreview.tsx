@@ -3,7 +3,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Progress } from "@/components/ui/progress";
 import {
   FileText,
   X,
@@ -292,16 +291,6 @@ export const FilePreview = memo(function FilePreview({
             </p>
           )}
         </div>
-
-        {/* File download progress (only shown if showDownloadProgress is true) */}
-        {showDownloadProgress &&
-          file.status === "downloading" &&
-          file.progress !== undefined && (
-            <div className="mt-2">
-              <Progress value={file.progress} className="h-1" />
-              <p className="text-xs text-right mt-1">{file.progress}%</p>
-            </div>
-          )}
 
         {/* Error state with retry button (only shown if showDownloadProgress and onRetry are provided) */}
         {showDownloadProgress && file.status === "error" && onRetry && (
