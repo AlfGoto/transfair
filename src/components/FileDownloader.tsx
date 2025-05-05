@@ -10,7 +10,9 @@ import { FileItem, type FileWithProgress } from "./FileItem"
 import { ProgressBar } from "./ui/progress-bar"
 
 // Helper for deep comparison
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const useDeepCompareEffect = (effect: React.EffectCallback, deps: any[]) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ref = useRef<any[]>(deps)
   if (!deps.every((val, i) => val === ref.current[i])) {
     ref.current = deps
