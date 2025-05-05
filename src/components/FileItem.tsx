@@ -1,44 +1,26 @@
-"use client";
+"use client"
 
-import { memo, useState, useRef, useEffect } from "react";
-import { Checkbox } from "@/components/ui/checkbox";
-import { FilePreview } from "./FilePreview";
-import type { FileMetadata } from "@/app/[id]/page";
+import { memo, useState, useRef, useEffect } from "react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { FilePreview } from "./FilePreview"
+import type { FileMetadata } from "@/app/[id]/page"
 
 interface FileWithProgress extends FileMetadata {
-  blob?: Blob;
-  progress: number;
-  status: "pending" | "downloading" | "complete" | "error";
-  preview?: string;
+  progress: number
+  status: "pending" | "downloading" | "complete" | "error"
+  preview?: string
+  objectUrl?: string
 }
 
 interface FileItemProps {
-  file: FileWithProgress;
-  index: number;
-  isSelected: boolean;
-  onToggleSelect: (index: number) => void;
-  onDownloadSingle: (file: FileWithProgress) => void;
-  onRetry: (file: FileWithProgress, index: number) => void;
+  file: FileWithProgress
+  index: number
+  isSelected: boolean
+  onToggleSelect: (index: number) => void
+  onDownloadSingle: (file: FileWithProgress) => void
+  onRetry: (file: FileWithProgress, index: number) => void
 }
 
-// Create a stable object URL that persists between renders
-const objectUrlCache = new Map<string, string>();
-
-function getObjectUrl(file: FileWithProgress): string | null {
-  if (!file.blob) return null;
-
-  const cacheKey = `${file.id}-${file.blob.size}-${file.blob.type}`;
-
-  if (objectUrlCache.has(cacheKey)) {
-    return objectUrlCache.get(cacheKey) || null;
-  }
-
-  const url = URL.createObjectURL(file.blob);
-  objectUrlCache.set(cacheKey, url);
-  return url;
-}
-
-// The FileItem component is memoized to prevent unnecessary re-renders
 const FileItem = memo(
   function FileItem({
     file,
@@ -48,39 +30,32 @@ const FileItem = memo(
     onDownloadSingle,
     onRetry,
   }: FileItemProps) {
-    // Store the object URL in a ref to prevent it from changing between renders
-    const objectUrlRef = useRef<string | null>(null);
-    const [isLoaded, setIsLoaded] = useState(false);
+    const [isLoaded, setIsLoaded] = useState(false)
+    const urlRef = useRef<string | undefined>(undefined)
 
-    // Get or create the object URL once when the blob is available
     useEffect(() => {
-      if (file.blob && !objectUrlRef.current) {
-        objectUrlRef.current = getObjectUrl(file);
-        setIsLoaded(true);
+      if (file.objectUrl && !urlRef.current) {
+        urlRef.current = file.objectUrl
+        setIsLoaded(true)
       }
-    }, [file.blob, file.id, getObjectUrl]);
+    }, [file.objectUrl])
 
-    // Create a stable file object that won't change unless necessary properties change
     const stableFile = {
       id: file.id,
       name: file.name,
       type: file.type,
-      size: file.blob?.size,
-      preview: file.preview,
       status: file.status,
       progress: file.progress,
-      // Only include the blob reference if we're still downloading
-      // This prevents re-renders once the file is complete
-      blob: file.status === "complete" && isLoaded ? undefined : file.blob,
-      // Add a stable URL property that won't change between renders
-      url: objectUrlRef.current,
-    };
+      preview: file.preview,
+      url: file.url,
+      objectUrl: file.objectUrl,
+    }
 
     return (
       <div className="relative">
         <div
           className="absolute top-6 left-6 z-10 dark:bg-gray-800 rounded-md p-1"
-          onClick={(e) => e.stopPropagation()} // Empêcher la propagation pour éviter les doubles clics
+          onClick={(e) => e.stopPropagation()}
         >
           <Checkbox
             id={`file-${file.id}`}
@@ -93,8 +68,8 @@ const FileItem = memo(
           <FilePreview
             file={{
               ...stableFile,
-              // For image display, we need to provide a stable URL that won't change
-              imageUrl: objectUrlRef.current,
+              objectUrl: file.objectUrl,
+              type: file.type || ""
             }}
             onDownload={() => onDownloadSingle(file)}
             onRetry={() => onRetry(file, index)}
@@ -102,20 +77,16 @@ const FileItem = memo(
           />
         </div>
       </div>
-    );
+    )
   },
   (prevProps, nextProps) => {
-    // Custom comparison function to prevent unnecessary re-renders
-    // Only re-render if these specific properties change
     return (
       prevProps.isSelected === nextProps.isSelected &&
       prevProps.file.status === nextProps.file.status &&
       prevProps.file.progress === nextProps.file.progress &&
-      // Once a file is complete, we don't need to re-render it anymore
-      prevProps.file.status === "complete" &&
-      nextProps.file.status === "complete"
-    );
-  }
-);
+      prevProps.file.objectUrl === nextProps.file.objectUrl
+    )
+  },
+)
 
-export { FileItem, type FileWithProgress };
+export { FileItem, type FileWithProgress }

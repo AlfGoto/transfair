@@ -9,10 +9,7 @@ import type { FileMetadata } from "@/app/[id]/page"
 import { FileItem, type FileWithProgress } from "./FileItem"
 import { ProgressBar } from "./ui/progress-bar"
 
-// Helper for deep comparison
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const useDeepCompareEffect = (effect: React.EffectCallback, deps: any[]) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ref = useRef<any[]>(deps)
   if (!deps.every((val, i) => val === ref.current[i])) {
     ref.current = deps
@@ -34,23 +31,26 @@ export function FileDownloader({
   const [isLoading, setIsLoading] = useState(false)
   const progressRefs = useRef<{ progress: number }[]>([])
 
-  // Initialize files with deep comparison
+  // Initialize files and clean up object URLs
   useDeepCompareEffect(() => {
-    setFiles(
-      filesMetadata.map((file) => ({
-        ...file,
-        progress: 0,
-        status: "pending",
-      })),
-    )
+    const initialFiles = filesMetadata.map((file) => ({
+      ...file,
+      progress: 0,
+      status: "pending" as const,
+    }))
+    setFiles(initialFiles)
     setIsMobile(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent))
     progressRefs.current = filesMetadata.map(() => ({ progress: 0 }))
+
+    return () => {
+      initialFiles.forEach((file) => {
+        if (file.url) URL.revokeObjectURL(file.url)
+      })
+    }
   }, [filesMetadata])
 
-  // Throttled progress updates
   const updateProgress = useCallback((index: number, progress: number) => {
     progressRefs.current[index].progress = progress
-    // Batch updates every 100ms
     setTimeout(() => {
       setFiles((prev) =>
         prev.map((f, i) =>
@@ -62,11 +62,9 @@ export function FileDownloader({
     }, 100)
   }, [])
 
-  // Download handler
   const downloadFile = useCallback(
     async (file: FileWithProgress, index: number) => {
-      if (file.status === "downloading" || file.status === "complete")
-        return null
+      if (file.status === "downloading" || file.status === "complete") return
 
       try {
         setFiles((prev) =>
@@ -78,16 +76,16 @@ export function FileDownloader({
         const response = await fetch(file.url)
         if (!response.ok) throw new Error(`Failed to fetch ${file.name}`)
 
-        const contentLength =
-          Number(response.headers.get("content-length")) || 0
         const contentType = response.headers.get("content-type") || ""
         const reader = response.body?.getReader()
-
         if (!reader) throw new Error("ReadableStream not supported")
 
+        const contentLength =
+          Number(response.headers.get("content-length")) || 0
         let receivedLength = 0
         const chunks: Uint8Array[] = []
-        let lastReportedProgress = 0
+        let preview = ""
+        let previewGenerated = false
 
         while (true) {
           const { done, value } = await reader.read()
@@ -96,48 +94,36 @@ export function FileDownloader({
           chunks.push(value)
           receivedLength += value.length
 
-          if (contentLength) {
-            const progress = Math.round((receivedLength / contentLength) * 100)
-            // Only update progress if it's increased by at least 10%
-            if (progress >= lastReportedProgress + 10 || progress === 100) {
-              updateProgress(index, progress)
-              lastReportedProgress = progress
+          // Generate preview from first chunk
+          if (!previewGenerated && chunks.length === 1) {
+            try {
+              const decoder = new TextDecoder()
+              const chunkText = decoder.decode(value.slice(0, 500))
+              preview =
+                chunkText.slice(0, 500) + (chunkText.length > 500 ? "..." : "")
+              previewGenerated = true
+            } catch (e) {
+              console.error("Preview generation failed:", e)
             }
           }
-        }
 
-        const chunksAll = new Uint8Array(receivedLength)
-        let position = 0
-        for (const chunk of chunks) {
-          chunksAll.set(chunk, position)
-          position += chunk.length
-        }
-
-        const blob = new Blob([chunksAll], {
-          type: contentType || file.type || "application/octet-stream",
-        })
-
-        let preview: string | undefined = undefined
-        if (
-          blob.type.startsWith("text/") ||
-          blob.type.includes("json") ||
-          /\.(md|txt|csv|xml|yml|yaml|json|js|ts|html|css)$/i.test(file.name)
-        ) {
-          try {
-            const text = await blob.text()
-            preview = text.slice(0, 500) + (text.length > 500 ? "..." : "")
-          } catch (e) {
-            console.error("Failed to generate preview:", e)
+          if (contentLength) {
+            const progress = Math.round((receivedLength / contentLength) * 100)
+            updateProgress(index, progress)
           }
         }
+
+        // Create blob and object URL
+        const blob = new Blob(chunks)
+        const url = URL.createObjectURL(blob)
 
         setFiles((prev) =>
           prev.map((f, i) =>
             i === index
               ? {
                   ...f,
-                  blob,
-                  type: blob.type,
+                  type: contentType,
+                  objectUrl: url,
                   progress: 100,
                   status: "complete",
                   preview,
@@ -146,19 +132,20 @@ export function FileDownloader({
           ),
         )
 
-        return blob
+        // Schedule URL cleanup
+        setTimeout(() => {
+          URL.revokeObjectURL(url)
+        }, 30000) // Revoke after 30 seconds
       } catch (error) {
         console.error(`Error downloading file ${file.name}:`, error)
         setFiles((prev) =>
           prev.map((f, i) => (i === index ? { ...f, status: "error" } : f)),
         )
-        return null
       }
     },
     [updateProgress],
   )
 
-  // Download scheduler
   const startDownloads = useCallback(() => {
     if (downloadInProgress.current || files.length === 0) return
 
@@ -189,7 +176,6 @@ export function FileDownloader({
     schedule()
   }, [files, downloadFile])
 
-  // Trigger downloads once when files are ready
   useEffect(() => {
     if (files.length > 0 && !downloadInProgress.current) {
       startDownloads()
@@ -202,18 +188,23 @@ export function FileDownloader({
     )
   }, [])
 
-  const downloadSingleFile = useCallback((file: FileWithProgress) => {
-    if (!file.blob) return
-
-    const url = URL.createObjectURL(file.blob)
-    const a = document.createElement("a")
-    a.style.display = "none"
-    a.href = url
-    a.download = file.name
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
+  const downloadSingleFile = useCallback(async (file: FileWithProgress) => {
+    if (!file.url) {
+      // If URL was revoked, re-fetch the file
+      const response = await fetch(file.url)
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = file.name
+      a.click()
+      URL.revokeObjectURL(url)
+    } else {
+      const a = document.createElement("a")
+      a.href = file.url
+      a.download = file.name
+      a.click()
+    }
   }, [])
 
   const downloadSelectedFiles = async () => {
@@ -224,41 +215,36 @@ export function FileDownloader({
       )
 
       if (selectedFilesData.length === 1) {
-        downloadSingleFile(selectedFilesData[0])
-        setIsDownloading(false)
+        await downloadSingleFile(selectedFilesData[0])
         return
       }
 
       const zip = new JSZip()
       const folderName = selectedFilesData[0]?.name.split(".")[0] || "download"
-      const folder = zip.folder(folderName)
 
-      if (!folder) {
-        console.error("Failed to create folder in zip")
-        setIsDownloading(false)
-        return
-      }
-
-      for (const file of selectedFilesData) {
-        if (!file.blob) continue
-        folder.file(file.name, await file.blob.arrayBuffer())
-      }
-
-      const zipBlob = await zip.generateAsync({
-        type: "blob",
-        compression: "DEFLATE",
-        compressionOptions: { level: 6 },
+      await Promise.all(
+        selectedFilesData.map(async (file) => {
+          if (!file.url) {
+            const response = await fetch(file.url)
+            const blob = await response.blob()
+            return { file, blob }
+          }
+          const blob = await fetch(file.url).then((res) => res.blob())
+          return { file, blob }
+        }),
+      ).then((files) => {
+        files.forEach(({ file, blob }) => {
+          zip.file(file.name, blob)
+        })
       })
 
-      const zipUrl = URL.createObjectURL(zipBlob)
+      const zipBlob = await zip.generateAsync({ type: "blob" })
+      const url = URL.createObjectURL(zipBlob)
       const a = document.createElement("a")
-      a.style.display = "none"
-      a.href = zipUrl
+      a.href = url
       a.download = `${folderName}.zip`
-      document.body.appendChild(a)
       a.click()
-      document.body.removeChild(a)
-      setTimeout(() => URL.revokeObjectURL(zipUrl), 5000)
+      URL.revokeObjectURL(url)
     } catch (error) {
       console.error("Error downloading files:", error)
     } finally {
@@ -270,41 +256,36 @@ export function FileDownloader({
     setIsDownloading(true)
     try {
       if (files.length === 1) {
-        downloadSingleFile(files[0])
-        setIsDownloading(false)
+        await downloadSingleFile(files[0])
         return
       }
 
       const zip = new JSZip()
       const folderName = files[0]?.name.split(".")[0] || "download"
-      const folder = zip.folder(folderName)
 
-      if (!folder) {
-        console.error("Failed to create folder in zip")
-        setIsDownloading(false)
-        return
-      }
-
-      for (const file of files) {
-        if (!file.blob) continue
-        folder.file(file.name, await file.blob.arrayBuffer())
-      }
-
-      const zipBlob = await zip.generateAsync({
-        type: "blob",
-        compression: "DEFLATE",
-        compressionOptions: { level: 6 },
+      await Promise.all(
+        files.map(async (file) => {
+          if (!file.url) {
+            const response = await fetch(file.url)
+            const blob = await response.blob()
+            return { file, blob }
+          }
+          const blob = await fetch(file.url).then((res) => res.blob())
+          return { file, blob }
+        }),
+      ).then((files) => {
+        files.forEach(({ file, blob }) => {
+          zip.file(file.name, blob)
+        })
       })
 
-      const zipUrl = URL.createObjectURL(zipBlob)
+      const zipBlob = await zip.generateAsync({ type: "blob" })
+      const url = URL.createObjectURL(zipBlob)
       const a = document.createElement("a")
-      a.style.display = "none"
-      a.href = zipUrl
+      a.href = url
       a.download = `${folderName}.zip`
-      document.body.appendChild(a)
       a.click()
-      document.body.removeChild(a)
-      setTimeout(() => URL.revokeObjectURL(zipUrl), 5000)
+      URL.revokeObjectURL(url)
     } catch (error) {
       console.error("Error downloading files:", error)
     } finally {
@@ -324,7 +305,7 @@ export function FileDownloader({
     try {
       const imageFilesData = files.filter(
         (file) =>
-          file.blob &&
+          file.objectUrl &&
           file.status === "complete" &&
           file.type &&
           file.type.startsWith("image/"),
@@ -337,7 +318,7 @@ export function FileDownloader({
       }
 
       const shareFiles = imageFilesData.map(
-        (file) => new File([file.blob!], file.name, { type: file.type }),
+        (file) => new File([file.objectUrl!], file.name, { type: file.type }),
       )
 
       if (
@@ -435,7 +416,7 @@ export function FileDownloader({
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <Button
             onClick={downloadAllFiles}
-            disabled={files.length === 0 || files.every((f) => !f.blob)}
+            disabled={files.length === 0 || files.every((f) => !f.objectUrl)}
             className="w-full sm:w-auto"
           >
             <Download className="mr-2 h-4 w-4" />
@@ -445,7 +426,7 @@ export function FileDownloader({
             onClick={downloadSelectedFiles}
             disabled={
               selectedFiles.length === 0 ||
-              selectedFiles.every((index) => !files[index]?.blob)
+              selectedFiles.every((index) => !files[index]?.objectUrl)
             }
             className="w-full sm:w-auto"
           >
@@ -454,7 +435,7 @@ export function FileDownloader({
           </Button>
 
           {isMobile &&
-            files.some((file) => file.blob?.type?.startsWith("image/")) && (
+            files.some((file) => file?.type?.startsWith("image/")) && (
               <Button
                 onClick={shareAllImages}
                 className="w-full sm:w-auto"
