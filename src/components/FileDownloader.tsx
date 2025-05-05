@@ -9,6 +9,15 @@ import type { FileMetadata } from "@/app/[id]/page"
 import { FileItem, type FileWithProgress } from "./FileItem"
 import { ProgressBar } from "./ui/progress-bar"
 
+// Helper for deep comparison
+const useDeepCompareEffect = (effect: React.EffectCallback, deps: any[]) => {
+  const ref = useRef<any[]>(deps)
+  if (!deps.every((val, i) => val === ref.current[i])) {
+    ref.current = deps
+  }
+  useEffect(effect, ref.current)
+}
+
 export function FileDownloader({
   filesMetadata,
 }: {
@@ -21,76 +30,42 @@ export function FileDownloader({
   const router = useRouter()
   const downloadInProgress = useRef(false)
   const [isLoading, setIsLoading] = useState(false)
+  const progressRefs = useRef<{ progress: number }[]>([])
 
-  // Initialize files with progress tracking
-  useEffect(() => {
+  // Initialize files with deep comparison
+  useDeepCompareEffect(() => {
     setFiles(
       filesMetadata.map((file) => ({
         ...file,
         progress: 0,
         status: "pending",
-      })),
+      }))
     )
-
     setIsMobile(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent))
+    progressRefs.current = filesMetadata.map(() => ({ progress: 0 }))
   }, [filesMetadata])
 
-  useEffect(() => {
-    const downloadAllFiles = () => {
-      if (downloadInProgress.current) return
-      downloadInProgress.current = true
-
-      let inFlight = 0
-      let nextIdx = 0
-      const total = files.length
-
-      const schedule = () => {
-        // stop if cleaned up or nothing left to launch
-        if (!downloadInProgress.current) return
-
-        while (inFlight < 3 && nextIdx < total) {
-          const idx = nextIdx++
-          const file = files[idx]
-
-          inFlight++
-          downloadFile(file, idx).finally(() => {
-            inFlight--
-            // if all done, flip the flag
-            if (inFlight === 0 && nextIdx >= total) {
-              downloadInProgress.current = false
-            } else {
-              schedule()
-            }
-          })
-        }
-      }
-
-      schedule()
-    }
-
-    if (files.length > 0 && !downloadInProgress.current) {
-      downloadAllFiles()
-    }
-  }, [files.length]) // Only run when files array is first populated
-
-  const toggleFileSelection = useCallback((index: number) => {
-    setSelectedFiles((prev) =>
-      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index],
-    )
+  // Throttled progress updates
+  const updateProgress = useCallback((index: number, progress: number) => {
+    progressRefs.current[index].progress = progress
+    // Batch updates every 100ms
+    setTimeout(() => {
+      setFiles(prev => prev.map((f, i) => 
+        i === index ? {...f, progress: progressRefs.current[i].progress} : f
+      ))
+    }, 100)
   }, [])
 
-  const downloadFile = async (file: FileWithProgress, index: number) => {
+  // Download handler
+  const downloadFile = useCallback(async (file: FileWithProgress, index: number) => {
     if (file.status === "downloading" || file.status === "complete") return null
 
     try {
-      // Update file status
-      setFiles((prev) =>
-        prev.map((f, i) => (i === index ? { ...f, status: "downloading" } : f)),
-      )
+      setFiles(prev => prev.map((f, i) => 
+        i === index ? {...f, status: "downloading"} : f
+      ))
 
-      // Fetch with progress tracking
       const response = await fetch(file.url)
-
       if (!response.ok) throw new Error(`Failed to fetch ${file.name}`)
 
       const contentLength = Number(response.headers.get("content-length")) || 0
@@ -104,24 +79,17 @@ export function FileDownloader({
 
       while (true) {
         const { done, value } = await reader.read()
-
         if (done) break
 
         chunks.push(value)
         receivedLength += value.length
 
-        // Calculate progress percentage
         const progress = contentLength
           ? Math.round((receivedLength / contentLength) * 100)
           : 0
-
-        // Update file progress
-        setFiles((prev) =>
-          prev.map((f, i) => (i === index ? { ...f, progress } : f)),
-        )
+        updateProgress(index, progress)
       }
 
-      // Combine chunks into a single Uint8Array
       const chunksAll = new Uint8Array(receivedLength)
       let position = 0
       for (const chunk of chunks) {
@@ -129,12 +97,10 @@ export function FileDownloader({
         position += chunk.length
       }
 
-      // Create blob from the downloaded data
       const blob = new Blob([chunksAll], {
         type: contentType || file.type || "application/octet-stream",
       })
 
-      // Generate preview for text files
       let preview: string | undefined = undefined
       if (
         blob.type.startsWith("text/") ||
@@ -149,8 +115,7 @@ export function FileDownloader({
         }
       }
 
-      // Update file with blob, type, and status
-      setFiles((prev) =>
+      setFiles(prev =>
         prev.map((f, i) =>
           i === index
             ? {
@@ -168,44 +133,79 @@ export function FileDownloader({
       return blob
     } catch (error) {
       console.error(`Error downloading file ${file.name}:`, error)
-
-      // Update file status to error
-      setFiles((prev) =>
-        prev.map((f, i) => (i === index ? { ...f, status: "error" } : f)),
+      setFiles(prev =>
+        prev.map((f, i) => (i === index ? {...f, status: "error"} : f)),
       )
-
       return null
     }
-  }
+  }, [updateProgress])
+
+  // Download scheduler
+  const startDownloads = useCallback(() => {
+    if (downloadInProgress.current || files.length === 0) return
+    
+    downloadInProgress.current = true
+    let inFlight = 0
+    let nextIdx = 0
+    const total = files.length
+
+    const schedule = () => {
+      if (!downloadInProgress.current) return
+
+      while (inFlight < 3 && nextIdx < total) {
+        const idx = nextIdx++
+        const file = files[idx]
+
+        inFlight++
+        downloadFile(file, idx).finally(() => {
+          inFlight--
+          if (inFlight === 0 && nextIdx >= total) {
+            downloadInProgress.current = false
+          } else {
+            schedule()
+          }
+        })
+      }
+    }
+
+    schedule()
+  }, [files, downloadFile])
+
+  // Trigger downloads once when files are ready
+  useEffect(() => {
+    if (files.length > 0 && !downloadInProgress.current) {
+      startDownloads()
+    }
+  }, [files.length, startDownloads])
+
+  const toggleFileSelection = useCallback((index: number) => {
+    setSelectedFiles((prev) =>
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index],
+    )
+  }, [])
 
   const downloadSingleFile = useCallback((file: FileWithProgress) => {
     if (!file.blob) return
 
     const url = URL.createObjectURL(file.blob)
-
     const a = document.createElement("a")
     a.style.display = "none"
     a.href = url
     a.download = file.name
     document.body.appendChild(a)
     a.click()
-
     document.body.removeChild(a)
-
-    // We don't revoke the URL immediately to prevent issues with download
     setTimeout(() => URL.revokeObjectURL(url), 5000)
   }, [])
 
   const downloadSelectedFiles = async () => {
     setIsDownloading(true)
-
     try {
       const selectedFilesData = files.filter((_, index) =>
         selectedFiles.includes(index),
       )
 
       if (selectedFilesData.length === 1) {
-        // If only one file is selected, download it directly
         downloadSingleFile(selectedFilesData[0])
         setIsDownloading(false)
         return
@@ -221,13 +221,11 @@ export function FileDownloader({
         return
       }
 
-      // Add all selected files to the zip
       for (const file of selectedFilesData) {
         if (!file.blob) continue
         folder.file(file.name, await file.blob.arrayBuffer())
       }
 
-      // Generate and download the zip file
       const zipBlob = await zip.generateAsync({
         type: "blob",
         compression: "DEFLATE",
@@ -235,17 +233,13 @@ export function FileDownloader({
       })
 
       const zipUrl = URL.createObjectURL(zipBlob)
-
       const a = document.createElement("a")
       a.style.display = "none"
       a.href = zipUrl
       a.download = `${folderName}.zip`
       document.body.appendChild(a)
       a.click()
-
       document.body.removeChild(a)
-
-      // Revoke URL after a delay to ensure download starts
       setTimeout(() => URL.revokeObjectURL(zipUrl), 5000)
     } catch (error) {
       console.error("Error downloading files:", error)
@@ -256,10 +250,8 @@ export function FileDownloader({
 
   const downloadAllFiles = async () => {
     setIsDownloading(true)
-
     try {
       if (files.length === 1) {
-        // If only one file, download it directly
         downloadSingleFile(files[0])
         setIsDownloading(false)
         return
@@ -275,13 +267,11 @@ export function FileDownloader({
         return
       }
 
-      // Add all files to the zip
       for (const file of files) {
         if (!file.blob) continue
         folder.file(file.name, await file.blob.arrayBuffer())
       }
 
-      // Generate and download the zip file
       const zipBlob = await zip.generateAsync({
         type: "blob",
         compression: "DEFLATE",
@@ -289,17 +279,13 @@ export function FileDownloader({
       })
 
       const zipUrl = URL.createObjectURL(zipBlob)
-
       const a = document.createElement("a")
       a.style.display = "none"
       a.href = zipUrl
       a.download = `${folderName}.zip`
       document.body.appendChild(a)
       a.click()
-
       document.body.removeChild(a)
-
-      // Revoke URL after a delay to ensure download starts
       setTimeout(() => URL.revokeObjectURL(zipUrl), 5000)
     } catch (error) {
       console.error("Error downloading files:", error)
@@ -310,13 +296,11 @@ export function FileDownloader({
 
   const handleRetry = useCallback((file: FileWithProgress, index: number) => {
     downloadFile(file, index)
-  }, [])
+  }, [downloadFile])
 
   const shareAllImages = async () => {
-    setIsLoading(true) // Start loading animation
-
+    setIsLoading(true)
     try {
-      // Filtrer tous les fichiers qui sont des images terminées
       const imageFilesData = files.filter(
         (file) =>
           file.blob &&
@@ -326,17 +310,15 @@ export function FileDownloader({
       )
 
       if (imageFilesData.length === 0) {
-        console.warn("Aucune image à partager.")
-        setIsLoading(false) // Stop loading if no images
+        console.warn("No images to share.")
+        setIsLoading(false)
         return
       }
 
-      // Créer un tableau d'objets File pour le partage
       const shareFiles = imageFilesData.map(
         (file) => new File([file.blob!], file.name, { type: file.type }),
       )
 
-      // Vérifier si la fonction de partage de fichiers est disponible sur l'appareil
       if (
         navigator.share &&
         navigator.canShare &&
@@ -345,27 +327,21 @@ export function FileDownloader({
         try {
           await navigator.share({
             files: shareFiles,
-            title: "Partager mes images",
-            text: "Voici toutes les images de ma caméra !",
+            title: "Share my images",
+            text: "Here are all my camera images!",
           })
         } catch (error) {
-          console.error("Erreur lors du partage des images :", error)
+          console.error("Error sharing images:", error)
         }
       } else {
-        console.warn(
-          "Le partage de fichiers n'est pas supporté sur cet appareil.",
-        )
+        console.warn("File sharing not supported on this device.")
       }
     } finally {
-      setIsLoading(false) // Stop loading animation when done
+      setIsLoading(false)
     }
   }
 
-  const { totalProgress, totalProgressBuffer, showProgressBar } = useMemo((): {
-    totalProgress: number
-    totalProgressBuffer: number
-    showProgressBar: boolean
-  } => {
+  const { totalProgress, totalProgressBuffer, showProgressBar } = useMemo(() => {
     if (files.length === 0) {
       return {
         totalProgress: 0,
@@ -384,6 +360,20 @@ export function FileDownloader({
       showProgressBar: totalProgress < 100,
     }
   }, [files])
+
+  const memoizedFiles = useMemo(() => 
+    files.map((file, index) => (
+      <FileItem
+        key={file.id}
+        file={file}
+        index={index}
+        isSelected={selectedFiles.includes(index)}
+        onToggleSelect={toggleFileSelection}
+        onDownloadSingle={downloadSingleFile}
+        onRetry={handleRetry}
+      />
+    ))
+  , [files, selectedFiles, toggleFileSelection, downloadSingleFile, handleRetry])
 
   if (isDownloading) {
     return (
@@ -453,17 +443,7 @@ export function FileDownloader({
 
       <div className="mt-6">
         <div className="grid grid-cols-1 min-[400px]:grid-cols-2 md:grid-cols-3 gap-4">
-          {files.map((file, index) => (
-            <FileItem
-              key={file.id}
-              file={file}
-              index={index}
-              isSelected={selectedFiles.includes(index)}
-              onToggleSelect={toggleFileSelection}
-              onDownloadSingle={downloadSingleFile}
-              onRetry={handleRetry}
-            />
-          ))}
+          {memoizedFiles}
         </div>
       </div>
       <Button
