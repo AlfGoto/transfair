@@ -9,9 +9,7 @@ import type { FileMetadata } from "@/app/[id]/page"
 import { FileItem, type FileWithProgress } from "./FileItem"
 import { ProgressBar } from "./ui/progress-bar"
 
-// eslint-disable-next-line
 const useDeepCompareEffect = (effect: React.EffectCallback, deps: any[]) => {
-  // eslint-disable-next-line
   const ref = useRef<any[]>(deps)
   if (!deps.every((val, i) => val === ref.current[i])) {
     ref.current = deps

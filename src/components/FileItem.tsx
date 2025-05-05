@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useRef, useEffect } from "react"
+import { memo, useState, useRef, useEffect } from "react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { FilePreview } from "./FilePreview"
 import type { FileMetadata } from "@/app/[id]/page"
@@ -30,11 +30,13 @@ const FileItem = memo(
     onDownloadSingle,
     onRetry,
   }: FileItemProps) {
+    const [isLoaded, setIsLoaded] = useState(false)
     const urlRef = useRef<string | undefined>(undefined)
 
     useEffect(() => {
       if (file.objectUrl && !urlRef.current) {
         urlRef.current = file.objectUrl
+        setIsLoaded(true)
       }
     }, [file.objectUrl])
 
@@ -67,7 +69,7 @@ const FileItem = memo(
             file={{
               ...stableFile,
               objectUrl: file.objectUrl,
-              type: file.type || "",
+              type: file.type || ""
             }}
             onDownload={() => onDownloadSingle(file)}
             onRetry={() => onRetry(file, index)}
