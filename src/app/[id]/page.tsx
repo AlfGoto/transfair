@@ -6,6 +6,7 @@ export interface FileMetadata {
   name: string
   url: string
   type?: string
+  size?: number
 }
 
 async function getFilesMetadata(id: string): Promise<FileMetadata[]> {
@@ -16,10 +17,14 @@ async function getFilesMetadata(id: string): Promise<FileMetadata[]> {
 
   // Only return metadata and URLs, not the actual file content
   const filesMetadata = json.map(
-    (file: { url: string; name: string; type: string }, index: number) => ({
+    (
+      file: { url: string; name: string; type: string; size: number },
+      index: number,
+    ): FileMetadata => ({
       id: `${file.name}-${index}`,
       name: file.name,
       url: file.url,
+      size: file.size,
     }),
   )
 

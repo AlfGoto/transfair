@@ -9,6 +9,8 @@ import type { FileMetadata } from "@/app/[id]/page"
 import { FileItem, type FileWithProgress } from "./FileItem"
 import { ProgressBar } from "./ui/progress-bar"
 
+const MAX_CONCURRENT_SIZE = 20
+
 // eslint-disable-next-line
 const useDeepCompareEffect = (effect: React.EffectCallback, deps: any[]) => {
   // eslint-disable-next-line
@@ -32,6 +34,7 @@ export function FileDownloader({
   const downloadInProgress = useRef(false)
   const [isLoading, setIsLoading] = useState(false)
   const progressRefs = useRef<{ progress: number }[]>([])
+  const queueLock = useRef(false)
 
   // Initialize files and clean up object URLs
   useDeepCompareEffect(() => {
@@ -149,38 +152,57 @@ export function FileDownloader({
     [updateProgress],
   )
 
-  const startDownloads = useCallback(() => {
-    if (downloadInProgress.current || files.length === 0) return
+  const startDownloads = useCallback(async (): Promise<void> => {
+    if (queueLock.current || files.length === 0) return
+    queueLock.current = true
 
-    downloadInProgress.current = true
-    let inFlight = 0
-    let nextIdx = 0
+    const maxSizeMB = MAX_CONCURRENT_SIZE
+    let inFlightSize = 0 // in MB
     const total = files.length
+    let nextIdx = 0
 
-    const schedule = () => {
-      if (!downloadInProgress.current) return
+    const downloadQueue = async () => {
+      while (nextIdx < total) {
+        const file = files[nextIdx]
 
-      while (inFlight < 3 && nextIdx < total) {
+        if (file.status !== "pending") {
+          nextIdx++
+          continue
+        }
+
+        const sizeMB = (file.size ?? 0) / (1024 * 1024)
+
+        // if adding this file would exceed budget but we already have downloads in flight, pause scheduling
+        if (inFlightSize + sizeMB > maxSizeMB && inFlightSize > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 100)) // Wait briefly before retrying
+          continue
+        }
+
+        if (sizeMB > maxSizeMB && inFlightSize > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 100)) // Wait briefly before retrying
+          continue
+        }
+        inFlightSize += sizeMB
         const idx = nextIdx++
-        const file = files[idx]
 
-        inFlight++
-        downloadFile(file, idx).finally(() => {
-          inFlight--
-          if (inFlight === 0 && nextIdx >= total) {
+        try {
+          await downloadFile(file, idx)
+        } finally {
+          inFlightSize -= sizeMB
+          // if everything’s done, clear the flag; otherwise try to schedule more
+          if (nextIdx >= total && inFlightSize === 0) {
             downloadInProgress.current = false
-          } else {
-            schedule()
           }
-        })
+          queueLock.current = false
+        }
       }
     }
 
-    schedule()
+    await downloadQueue()
   }, [files, downloadFile])
 
   useEffect(() => {
-    if (files.length > 0 && !downloadInProgress.current) {
+    if (files.length > 0) {
       startDownloads()
     }
   }, [files.length, startDownloads])
