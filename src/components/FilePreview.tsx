@@ -189,12 +189,11 @@ export const FilePreview = memo(function FilePreview({
         return (
           <div className="relative w-full h-32 sm:h-40 min-w-[50px]">
             <Image
-              src={imageUrl || "/placeholder.svg"}
+              src={imageUrl}
               alt={file.name}
               fill
               style={{ objectFit: "cover" }}
               className="rounded-md"
-              unoptimized // Important to prevent Next.js from optimizing and breaking our blob URLs
             />
           </div>
         )
