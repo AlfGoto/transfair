@@ -41,7 +41,7 @@ export function FileDownloader({
         ...file,
         progress: 0,
         status: "pending",
-      }))
+      })),
     )
     setIsMobile(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent))
     progressRefs.current = filesMetadata.map(() => ({ progress: 0 }))
@@ -52,100 +52,116 @@ export function FileDownloader({
     progressRefs.current[index].progress = progress
     // Batch updates every 100ms
     setTimeout(() => {
-      setFiles(prev => prev.map((f, i) => 
-        i === index ? {...f, progress: progressRefs.current[i].progress} : f
-      ))
+      setFiles((prev) =>
+        prev.map((f, i) =>
+          i === index
+            ? { ...f, progress: progressRefs.current[i].progress }
+            : f,
+        ),
+      )
     }, 100)
   }, [])
 
   // Download handler
-  const downloadFile = useCallback(async (file: FileWithProgress, index: number) => {
-    if (file.status === "downloading" || file.status === "complete") return null
+  const downloadFile = useCallback(
+    async (file: FileWithProgress, index: number) => {
+      if (file.status === "downloading" || file.status === "complete")
+        return null
 
-    try {
-      setFiles(prev => prev.map((f, i) => 
-        i === index ? {...f, status: "downloading"} : f
-      ))
+      try {
+        setFiles((prev) =>
+          prev.map((f, i) =>
+            i === index ? { ...f, status: "downloading" } : f,
+          ),
+        )
 
-      const response = await fetch(file.url)
-      if (!response.ok) throw new Error(`Failed to fetch ${file.name}`)
+        const response = await fetch(file.url)
+        if (!response.ok) throw new Error(`Failed to fetch ${file.name}`)
 
-      const contentLength = Number(response.headers.get("content-length")) || 0
-      const contentType = response.headers.get("content-type") || ""
-      const reader = response.body?.getReader()
+        const contentLength =
+          Number(response.headers.get("content-length")) || 0
+        const contentType = response.headers.get("content-type") || ""
+        const reader = response.body?.getReader()
 
-      if (!reader) throw new Error("ReadableStream not supported")
+        if (!reader) throw new Error("ReadableStream not supported")
 
-      let receivedLength = 0
-      const chunks: Uint8Array[] = []
+        let receivedLength = 0
+        const chunks: Uint8Array[] = []
+        let lastReportedProgress = 0
 
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
 
-        chunks.push(value)
-        receivedLength += value.length
+          chunks.push(value)
+          receivedLength += value.length
 
-        const progress = contentLength
-          ? Math.round((receivedLength / contentLength) * 100)
-          : 0
-        updateProgress(index, progress)
-      }
-
-      const chunksAll = new Uint8Array(receivedLength)
-      let position = 0
-      for (const chunk of chunks) {
-        chunksAll.set(chunk, position)
-        position += chunk.length
-      }
-
-      const blob = new Blob([chunksAll], {
-        type: contentType || file.type || "application/octet-stream",
-      })
-
-      let preview: string | undefined = undefined
-      if (
-        blob.type.startsWith("text/") ||
-        blob.type.includes("json") ||
-        /\.(md|txt|csv|xml|yml|yaml|json|js|ts|html|css)$/i.test(file.name)
-      ) {
-        try {
-          const text = await blob.text()
-          preview = text.slice(0, 500) + (text.length > 500 ? "..." : "")
-        } catch (e) {
-          console.error("Failed to generate preview:", e)
+          if (contentLength) {
+            const progress = Math.round((receivedLength / contentLength) * 100)
+            // Only update progress if it's increased by at least 10%
+            if (progress >= lastReportedProgress + 10 || progress === 100) {
+              updateProgress(index, progress)
+              lastReportedProgress = progress
+            }
+          }
         }
+
+        const chunksAll = new Uint8Array(receivedLength)
+        let position = 0
+        for (const chunk of chunks) {
+          chunksAll.set(chunk, position)
+          position += chunk.length
+        }
+
+        const blob = new Blob([chunksAll], {
+          type: contentType || file.type || "application/octet-stream",
+        })
+
+        let preview: string | undefined = undefined
+        if (
+          blob.type.startsWith("text/") ||
+          blob.type.includes("json") ||
+          /\.(md|txt|csv|xml|yml|yaml|json|js|ts|html|css)$/i.test(file.name)
+        ) {
+          try {
+            const text = await blob.text()
+            preview = text.slice(0, 500) + (text.length > 500 ? "..." : "")
+          } catch (e) {
+            console.error("Failed to generate preview:", e)
+          }
+        }
+
+        setFiles((prev) =>
+          prev.map((f, i) =>
+            i === index
+              ? {
+                  ...f,
+                  blob,
+                  type: blob.type,
+                  progress: 100,
+                  status: "complete",
+                  preview,
+                }
+              : f,
+          ),
+        )
+
+        return blob
+      } catch (error) {
+        console.error(`Error downloading file ${file.name}:`, error)
+        setFiles((prev) =>
+          prev.map((f, i) => (i === index ? { ...f, status: "error" } : f)),
+        )
+        return null
       }
-
-      setFiles(prev =>
-        prev.map((f, i) =>
-          i === index
-            ? {
-                ...f,
-                blob,
-                type: blob.type,
-                progress: 100,
-                status: "complete",
-                preview,
-              }
-            : f,
-        ),
-      )
-
-      return blob
-    } catch (error) {
-      console.error(`Error downloading file ${file.name}:`, error)
-      setFiles(prev =>
-        prev.map((f, i) => (i === index ? {...f, status: "error"} : f)),
-      )
-      return null
-    }
-  }, [updateProgress])
+    },
+    [updateProgress],
+  )
 
   // Download scheduler
   const startDownloads = useCallback(() => {
     if (downloadInProgress.current || files.length === 0) return
-    
+
     downloadInProgress.current = true
     let inFlight = 0
     let nextIdx = 0
@@ -296,9 +312,12 @@ export function FileDownloader({
     }
   }
 
-  const handleRetry = useCallback((file: FileWithProgress, index: number) => {
-    downloadFile(file, index)
-  }, [downloadFile])
+  const handleRetry = useCallback(
+    (file: FileWithProgress, index: number) => {
+      downloadFile(file, index)
+    },
+    [downloadFile],
+  )
 
   const shareAllImages = async () => {
     setIsLoading(true)
@@ -343,39 +362,48 @@ export function FileDownloader({
     }
   }
 
-  const { totalProgress, totalProgressBuffer, showProgressBar } = useMemo(() => {
-    if (files.length === 0) {
-      return {
-        totalProgress: 0,
-        totalProgressBuffer: 0,
-        showProgressBar: false,
+  const { totalProgress, totalProgressBuffer, showProgressBar } =
+    useMemo(() => {
+      if (files.length === 0) {
+        return {
+          totalProgress: 0,
+          totalProgressBuffer: 0,
+          showProgressBar: false,
+        }
       }
-    }
 
-    const total = files.reduce((sum, file) => sum + file.progress, 0)
-    const activeCount = files.filter((f) => f.progress !== 0).length
-    const totalProgress = (total / (files.length * 100)) * 100
+      const total = files.reduce((sum, file) => sum + file.progress, 0)
+      const activeCount = files.filter((f) => f.progress !== 0).length
+      const totalProgress = (total / (files.length * 100)) * 100
 
-    return {
-      totalProgress,
-      totalProgressBuffer: (activeCount / files.length) * 100,
-      showProgressBar: totalProgress < 100,
-    }
-  }, [files])
+      return {
+        totalProgress,
+        totalProgressBuffer: (activeCount / files.length) * 100,
+        showProgressBar: totalProgress < 100,
+      }
+    }, [files])
 
-  const memoizedFiles = useMemo(() => 
-    files.map((file, index) => (
-      <FileItem
-        key={file.id}
-        file={file}
-        index={index}
-        isSelected={selectedFiles.includes(index)}
-        onToggleSelect={toggleFileSelection}
-        onDownloadSingle={downloadSingleFile}
-        onRetry={handleRetry}
-      />
-    ))
-  , [files, selectedFiles, toggleFileSelection, downloadSingleFile, handleRetry])
+  const memoizedFiles = useMemo(
+    () =>
+      files.map((file, index) => (
+        <FileItem
+          key={file.id}
+          file={file}
+          index={index}
+          isSelected={selectedFiles.includes(index)}
+          onToggleSelect={toggleFileSelection}
+          onDownloadSingle={downloadSingleFile}
+          onRetry={handleRetry}
+        />
+      )),
+    [
+      files,
+      selectedFiles,
+      toggleFileSelection,
+      downloadSingleFile,
+      handleRetry,
+    ],
+  )
 
   if (isDownloading) {
     return (
