@@ -361,20 +361,6 @@ export function FileDownloader({
     }
   }
 
-  if (isDownloading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] py-12">
-        <Loader2 className="w-12 h-12 sm:w-16 sm:h-16 animate-spin mb-4" />
-        <h2 className="text-xl sm:text-2xl font-bold mb-2">
-          Preparing Download
-        </h2>
-        <p className="text-muted-foreground text-center mb-4">
-          Please wait while your files are being prepared...
-        </p>
-      </div>
-    )
-  }
-
   const { totalProgress, totalProgressBuffer, showProgressBar } = useMemo((): {
     totalProgress: number
     totalProgressBuffer: number
@@ -398,6 +384,20 @@ export function FileDownloader({
       showProgressBar: totalProgress < 100,
     }
   }, [files])
+
+  if (isDownloading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] py-12">
+        <Loader2 className="w-12 h-12 sm:w-16 sm:h-16 animate-spin mb-4" />
+        <h2 className="text-xl sm:text-2xl font-bold mb-2">
+          Preparing Download
+        </h2>
+        <p className="text-muted-foreground text-center mb-4">
+          Please wait while your files are being prepared...
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
