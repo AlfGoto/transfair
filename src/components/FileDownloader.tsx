@@ -119,10 +119,6 @@ export function FileDownloader({
         const blob = new Blob(chunks)
         const url = URL.createObjectURL(blob)
 
-        if (file.objectUrl) {
-          URL.revokeObjectURL(file.objectUrl)
-        }
-
         setFiles((prev) =>
           prev.map((f, i) =>
             i === index
@@ -138,7 +134,10 @@ export function FileDownloader({
           ),
         )
 
-        return { url, preview }
+        // Schedule URL cleanup
+        setTimeout(() => {
+          URL.revokeObjectURL(url)
+        }, 30000) // Revoke after 30 seconds
       } catch (error) {
         console.error(`Error downloading file ${file.name}:`, error)
         setFiles((prev) =>
@@ -184,18 +183,6 @@ export function FileDownloader({
       startDownloads()
     }
   }, [files.length, startDownloads])
-
-  useEffect(() => {
-    return () => {
-      // Clean up all object URLs when component unmounts
-      files.forEach((file) => {
-        if (file.objectUrl) {
-          URL.revokeObjectURL(file.objectUrl)
-        }
-      })
-      downloadInProgress.current = false
-    }
-  }, [files])
 
   const toggleFileSelection = useCallback((index: number) => {
     setSelectedFiles((prev) =>
@@ -403,7 +390,7 @@ export function FileDownloader({
 
   if (isDownloading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] py-12 w-full">
+      <div className="flex flex-col items-center justify-center min-h-[50vh] py-12">
         <Loader2 className="w-12 h-12 sm:w-16 sm:h-16 animate-spin mb-4" />
         <h2 className="text-xl sm:text-2xl font-bold mb-2">
           Preparing Download
