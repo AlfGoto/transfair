@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState, useRef, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
 import { Loader2, Download } from "lucide-react"
 import JSZip from "jszip"
 import type { FileMetadata } from "@/app/[id]/page"
 import { FileItem, type FileWithProgress } from "./FileItem"
+import { ProgressBar } from "./ui/progress-bar"
 
 export function FileDownloader({
   filesMetadata,
@@ -18,7 +18,6 @@ export function FileDownloader({
   const [selectedFiles, setSelectedFiles] = useState<number[]>([])
   const [isDownloading, setIsDownloading] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const [totalProgress, setTotalProgress] = useState(0)
   const router = useRouter()
   const downloadInProgress = useRef(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -36,33 +35,37 @@ export function FileDownloader({
     setIsMobile(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent))
   }, [filesMetadata])
 
-  // Start downloading all files immediately
   useEffect(() => {
-    const downloadAllFiles = async () => {
+    const downloadAllFiles = () => {
       if (downloadInProgress.current) return
       downloadInProgress.current = true
 
-      try {
-        // Download files in parallel with a limit of 3 concurrent downloads
-        const chunks = []
-        const chunkSize = 3 // Number of concurrent downloads
+      let inFlight = 0
+      let nextIdx = 0
+      const total = files.length
 
-        for (let i = 0; i < files.length; i += chunkSize) {
-          const chunk = files.slice(i, i + chunkSize)
-          chunks.push(chunk)
-        }
+      const schedule = () => {
+        // stop if cleaned up or nothing left to launch
+        if (!downloadInProgress.current) return
 
-        for (const chunk of chunks) {
-          await Promise.all(
-            chunk.map((file) => {
-              const fileIndex = files.findIndex((f) => f.id === file.id)
-              return downloadFile(file, fileIndex)
-            }),
-          )
+        while (inFlight < 3 && nextIdx < total) {
+          const idx = nextIdx++
+          const file = files[idx]
+
+          inFlight++
+          downloadFile(file, idx).finally(() => {
+            inFlight--
+            // if all done, flip the flag
+            if (inFlight === 0 && nextIdx >= total) {
+              downloadInProgress.current = false
+            } else {
+              schedule()
+            }
+          })
         }
-      } finally {
-        downloadInProgress.current = false
       }
+
+      schedule()
     }
 
     if (files.length > 0 && !downloadInProgress.current) {
@@ -116,9 +119,6 @@ export function FileDownloader({
         setFiles((prev) =>
           prev.map((f, i) => (i === index ? { ...f, progress } : f)),
         )
-
-        // Update total progress
-        updateTotalProgress()
       }
 
       // Combine chunks into a single Uint8Array
@@ -176,12 +176,6 @@ export function FileDownloader({
 
       return null
     }
-  }
-
-  const updateTotalProgress = () => {
-    const totalProgress =
-      files.reduce((sum, file) => sum + file.progress, 0) / files.length
-    setTotalProgress(Math.round(totalProgress))
   }
 
   const downloadSingleFile = useCallback((file: FileWithProgress) => {
@@ -314,14 +308,6 @@ export function FileDownloader({
     }
   }
 
-  const formatSize = useCallback((size: number): string => {
-    if (size < 1024) return `${size} B`
-    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-    if (size < 1024 * 1024 * 1024)
-      return `${(size / (1024 * 1024)).toFixed(1)} MB`
-    return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`
-  }, [])
-
   const handleRetry = useCallback((file: FileWithProgress, index: number) => {
     downloadFile(file, index)
   }, [])
@@ -389,53 +375,79 @@ export function FileDownloader({
     )
   }
 
+  const { totalProgress, totalProgressBuffer, showProgressBar } = useMemo((): {
+    totalProgress: number
+    totalProgressBuffer: number
+    showProgressBar: boolean
+  } => {
+    if (files.length === 0) {
+      return {
+        totalProgress: 0,
+        totalProgressBuffer: 0,
+        showProgressBar: false,
+      }
+    }
+
+    const total = files.reduce((sum, file) => sum + file.progress, 0)
+    const activeCount = files.filter((f) => f.progress !== 0).length
+    const totalProgress = (total / (files.length * 100)) * 100
+
+    return {
+      totalProgress,
+      totalProgressBuffer: (activeCount / files.length) * 100,
+      showProgressBar: totalProgress < 100,
+    }
+  }, [files])
+
   return (
     <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
       <h1 className="text-2xl font-bold mb-4">Download Files</h1>
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-        <Button
-          onClick={downloadAllFiles}
-          disabled={files.length === 0 || files.every((f) => !f.blob)}
-          className="w-full sm:w-auto"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Download All Files
-        </Button>
-        <Button
-          onClick={downloadSelectedFiles}
-          disabled={
-            selectedFiles.length === 0 ||
-            selectedFiles.every((index) => !files[index]?.blob)
-          }
-          className="w-full sm:w-auto"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Download Selected Files
-        </Button>
+      {showProgressBar ? (
+        <ProgressBar
+          value={totalProgress}
+          bufferValue={totalProgressBuffer}
+          text={"Files downloading..."}
+          color="bg-zinc-800"
+          bufferColor="bg-zinc-400"
+          className="my-5"
+        />
+      ) : (
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          <Button
+            onClick={downloadAllFiles}
+            disabled={files.length === 0 || files.every((f) => !f.blob)}
+            className="w-full sm:w-auto"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Download All Files
+          </Button>
+          <Button
+            onClick={downloadSelectedFiles}
+            disabled={
+              selectedFiles.length === 0 ||
+              selectedFiles.every((index) => !files[index]?.blob)
+            }
+            className="w-full sm:w-auto"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Download Selected Files
+          </Button>
 
-        {isMobile &&
-          files.some((file) => file.blob?.type?.startsWith("image/")) && (
-            <Button
-              onClick={shareAllImages}
-              className="w-full sm:w-auto"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="mr-2 h-4 w-4" />
-              )}
-              {isLoading ? "Loading..." : "Save Images"}
-            </Button>
-          )}
-      </div>
-
-      {/* Overall progress */}
-      {totalProgress > 0 && totalProgress < 100 && (
-        <div className="mt-4">
-          <p className="text-sm font-medium mb-1">Overall Progress</p>
-          <Progress value={totalProgress} className="h-2" />
-          <p className="text-xs text-right mt-1">{totalProgress}%</p>
+          {isMobile &&
+            files.some((file) => file.blob?.type?.startsWith("image/")) && (
+              <Button
+                onClick={shareAllImages}
+                className="w-full sm:w-auto"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                {isLoading ? "Loading..." : "Save Images"}
+              </Button>
+            )}
         </div>
       )}
 
@@ -450,7 +462,6 @@ export function FileDownloader({
               onToggleSelect={toggleFileSelection}
               onDownloadSingle={downloadSingleFile}
               onRetry={handleRetry}
-              formatSize={formatSize}
             />
           ))}
         </div>

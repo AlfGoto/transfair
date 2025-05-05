@@ -1,8 +1,8 @@
-"use client";
+"use client"
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   FileText,
   X,
@@ -18,80 +18,79 @@ import {
   FileQuestion,
   Loader2,
   Download,
-} from "lucide-react";
-import Image from "next/image";
-import { memo } from "react";
+} from "lucide-react"
+import Image from "next/image"
+import { memo } from "react"
+import { formatSize } from "@/lib/utils"
 
 // Original interface, preserved for backward compatibility
 interface FilePreviewProps {
   file: {
-    file?: Blob | MediaSource; // Made optional to support both versions
-    id: string;
-    name: string;
-    type?: string;
-    size?: number;
-    preview?: string;
+    file?: Blob | MediaSource // Made optional to support both versions
+    id: string
+    name: string
+    type?: string
+    size?: number
+    preview?: string
     // New optional properties for download functionality
-    blob?: Blob;
-    progress?: number;
-    status?: "pending" | "downloading" | "complete" | "error";
+    blob?: Blob
+    progress?: number
+    status?: "pending" | "downloading" | "complete" | "error"
     // New property for stable image URLs
-    imageUrl?: string | null;
-  };
-  onRemove?: (id: string) => void; // Made optional
-  formatSize?: (size: number) => string;
+    imageUrl?: string | null
+  }
+  onRemove?: (id: string) => void // Made optional
   // New optional props for download functionality
-  onDownload?: () => void;
-  onRetry?: () => void;
-  showDownloadProgress?: boolean;
+  onDownload?: () => void
+  onRetry?: () => void
+  showDownloadProgress?: boolean
 }
 
 // Memoized FilePreview component to prevent unnecessary re-renders
 export const FilePreview = memo(function FilePreview({
   file,
   onRemove,
-  formatSize,
   onDownload,
   onRetry,
   showDownloadProgress = false,
 }: FilePreviewProps) {
   const getFileIcon = (type = "", name: string) => {
     // Check file extension first
-    const extension = name.split(".").pop()?.toLowerCase();
+    const extension = name.split(".").pop()?.toLowerCase()
 
     // Check by extension
     switch (extension) {
       case "pdf":
-        return <FilePdf className="h-8 w-8 text-muted-foreground" />;
+        return <FilePdf className="h-8 w-8 text-muted-foreground" />
       case "doc":
       case "docx":
-        return <FileText className="h-8 w-8 text-muted-foreground" />;
+        return <FileText className="h-8 w-8 text-muted-foreground" />
       case "xls":
       case "xlsx":
       case "csv":
-        return <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />;
+        return <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
       case "ppt":
       case "pptx":
-        return <FilePresentation className="h-8 w-8 text-muted-foreground" />;
+        return <FilePresentation className="h-8 w-8 text-muted-foreground" />
       case "zip":
       case "rar":
       case "7z":
       case "tar":
       case "gz":
-        return <FileArchive className="h-8 w-8 text-muted-foreground" />;
+        return <FileArchive className="h-8 w-8 text-muted-foreground" />
       case "mp3":
       case "wav":
       case "ogg":
       case "flac":
-        return <FileAudio className="h-8 w-8 text-muted-foreground" />;
+        return <FileAudio className="h-8 w-8 text-muted-foreground" />
       case "mp4":
       case "mov":
       case "avi":
       case "mkv":
       case "webm":
-        return <FileVideo className="h-8 w-8 text-muted-foreground" />;
+        return <FileVideo className="h-8 w-8 text-muted-foreground" />
       case "json":
-        return <FileJson className="h-8 w-8 text-muted-foreground" />;
+        return <FileJson className="h-8 w-8 text-muted-foreground" />
       case "js":
       case "ts":
       case "jsx":
@@ -102,40 +101,40 @@ export const FilePreview = memo(function FilePreview({
       case "md":
       case "yml":
       case "yaml":
-        return <FileCode className="h-8 w-8 text-muted-foreground" />;
+        return <FileCode className="h-8 w-8 text-muted-foreground" />
     }
 
     // Check by MIME type if extension didn't match
     if (type.startsWith("image/")) {
-      return <ImageIcon className="h-8 w-8 text-muted-foreground" />;
+      return <ImageIcon className="h-8 w-8 text-muted-foreground" />
     } else if (type.startsWith("text/")) {
-      return <FileText className="h-8 w-8 text-muted-foreground" />;
+      return <FileText className="h-8 w-8 text-muted-foreground" />
     } else if (type.startsWith("audio/")) {
-      return <FileAudio className="h-8 w-8 text-muted-foreground" />;
+      return <FileAudio className="h-8 w-8 text-muted-foreground" />
     } else if (type.startsWith("video/")) {
-      return <FileVideo className="h-8 w-8 text-muted-foreground" />;
+      return <FileVideo className="h-8 w-8 text-muted-foreground" />
     } else if (type.includes("pdf")) {
-      return <FilePdf className="h-8 w-8 text-muted-foreground" />;
+      return <FilePdf className="h-8 w-8 text-muted-foreground" />
     } else if (type.includes("spreadsheet") || type.includes("csv")) {
-      return <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />;
+      return <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
     } else if (type.includes("archive") || type.includes("zip")) {
-      return <FileArchive className="h-8 w-8 text-muted-foreground" />;
+      return <FileArchive className="h-8 w-8 text-muted-foreground" />
     } else if (type.includes("json")) {
-      return <FileJson className="h-8 w-8 text-muted-foreground" />;
+      return <FileJson className="h-8 w-8 text-muted-foreground" />
     }
 
     // Default icon
-    return <FileQuestion className="h-8 w-8 text-muted-foreground" />;
-  };
+    return <FileQuestion className="h-8 w-8 text-muted-foreground" />
+  }
 
   // Determine if we should show loading state
   const shouldShowLoading =
     showDownloadProgress &&
     file.status === "downloading" &&
-    file.progress !== undefined;
+    file.progress !== undefined
 
   // Determine if we should show image - with proper type checking
-  const shouldShowImage = file.type ? file.type.startsWith("image/") : false;
+  const shouldShowImage = file.type ? file.type.startsWith("image/") : false
 
   // Render the preview content
   const renderPreviewContent = () => {
@@ -148,7 +147,7 @@ export const FilePreview = memo(function FilePreview({
             <p className="text-xs text-muted-foreground">En attente...</p>
           </div>
         </div>
-      );
+      )
     }
 
     // Show loading state
@@ -160,12 +159,12 @@ export const FilePreview = memo(function FilePreview({
             <p className="text-xs text-muted-foreground">{file.progress}%</p>
           </div>
         </div>
-      );
+      )
     }
 
     // Show image if we have a URL or blob and it's an image
     if (shouldShowImage) {
-      let imageUrl = file.imageUrl;
+      let imageUrl = file.imageUrl
 
       // Try to get URL from blob or file only if they are images
       if (!imageUrl) {
@@ -174,14 +173,14 @@ export const FilePreview = memo(function FilePreview({
           file.blob.type &&
           file.blob.type.startsWith("image/")
         ) {
-          imageUrl = URL.createObjectURL(file.blob);
+          imageUrl = URL.createObjectURL(file.blob)
         } else if (
           file.file &&
           typeof file.file !== "string" &&
           (file.file as Blob).type &&
           (file.file as Blob).type.startsWith("image/")
         ) {
-          imageUrl = URL.createObjectURL(file.file as Blob);
+          imageUrl = URL.createObjectURL(file.file as Blob)
         }
       }
 
@@ -198,7 +197,7 @@ export const FilePreview = memo(function FilePreview({
               unoptimized // Important to prevent Next.js from optimizing and breaking our blob URLs
             />
           </div>
-        );
+        )
       }
     }
 
@@ -212,7 +211,7 @@ export const FilePreview = memo(function FilePreview({
             (file.file && typeof file.file !== "string"
               ? (file.file as Blob).type || ""
               : ""),
-          file.name
+          file.name,
         )}
         {file.preview ? (
           <ScrollArea className="h-full w-full rounded-md mt-2">
@@ -232,8 +231,8 @@ export const FilePreview = memo(function FilePreview({
           </span>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   // Modifier le composant Card pour qu'il ne capture pas les clics
   // Cela permet au clic de remonter jusqu'au parent pour la sélection
@@ -246,8 +245,8 @@ export const FilePreview = memo(function FilePreview({
           size="icon"
           className="absolute -right-2 -top-2 z-10 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={(e) => {
-            e.stopPropagation(); // Empêcher la propagation pour éviter la sélection
-            onRemove(file.id);
+            e.stopPropagation() // Empêcher la propagation pour éviter la sélection
+            onRemove(file.id)
           }}
         >
           <X className="h-4 w-4" />
@@ -264,8 +263,8 @@ export const FilePreview = memo(function FilePreview({
             variant="ghost"
             size="sm"
             onClick={(e) => {
-              e.stopPropagation(); // Empêcher la propagation pour éviter la sélection
-              onDownload();
+              e.stopPropagation() // Empêcher la propagation pour éviter la sélection
+              onDownload()
             }}
             className="absolute top-2 right-2 h-8 px-2"
           >
@@ -286,7 +285,7 @@ export const FilePreview = memo(function FilePreview({
                   file.blob?.size ||
                   (file.file && typeof file.file !== "string"
                     ? (file.file as Blob).size || 0
-                    : 0)
+                    : 0),
               )}
             </p>
           )}
@@ -300,8 +299,8 @@ export const FilePreview = memo(function FilePreview({
               variant="link"
               className="p-0 h-auto text-xs"
               onClick={(e) => {
-                e.stopPropagation(); // Empêcher la propagation pour éviter la sélection
-                onRetry();
+                e.stopPropagation() // Empêcher la propagation pour éviter la sélection
+                onRetry()
               }}
             >
               Try again
@@ -310,5 +309,5 @@ export const FilePreview = memo(function FilePreview({
         )}
       </CardContent>
     </Card>
-  );
-});
+  )
+})

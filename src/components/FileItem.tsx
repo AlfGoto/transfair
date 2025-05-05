@@ -19,7 +19,6 @@ interface FileItemProps {
   onToggleSelect: (index: number) => void;
   onDownloadSingle: (file: FileWithProgress) => void;
   onRetry: (file: FileWithProgress, index: number) => void;
-  formatSize: (size: number) => string;
 }
 
 // Create a stable object URL that persists between renders
@@ -48,7 +47,6 @@ const FileItem = memo(
     onToggleSelect,
     onDownloadSingle,
     onRetry,
-    formatSize,
   }: FileItemProps) {
     // Store the object URL in a ref to prevent it from changing between renders
     const objectUrlRef = useRef<string | null>(null);
@@ -100,7 +98,6 @@ const FileItem = memo(
             }}
             onDownload={() => onDownloadSingle(file)}
             onRetry={() => onRetry(file, index)}
-            formatSize={formatSize}
             showDownloadProgress={true}
           />
         </div>
