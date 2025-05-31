@@ -134,7 +134,7 @@ export const FilePreview = memo(function FilePreview({
     file.progress !== undefined
 
   // Determine if we should show image - with proper type checking
-  const shouldShowImage = file.type ? file.type.startsWith("image/") : false
+  // const shouldShowImage = file.type ? file.type.startsWith("image/") : false
 
   // Render the preview content
   const renderPreviewContent = () => {
