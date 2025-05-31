@@ -19,7 +19,7 @@ import {
   Loader2,
   Download,
 } from "lucide-react"
-import Image from "next/image"
+// import Image from "next/image"
 import { memo } from "react"
 import { formatSize } from "@/lib/utils"
 
@@ -163,42 +163,42 @@ export const FilePreview = memo(function FilePreview({
     }
 
     // Show image if we have a URL or blob and it's an image
-    if (shouldShowImage) {
-      let imageUrl = file.imageUrl
+    // if (shouldShowImage) {
+    //   let imageUrl = file.imageUrl
 
-      // Try to get URL from blob or file only if they are images
-      if (!imageUrl) {
-        if (
-          file.blob &&
-          file.blob.type &&
-          file.blob.type.startsWith("image/")
-        ) {
-          imageUrl = URL.createObjectURL(file.blob)
-        } else if (
-          file.file &&
-          typeof file.file !== "string" &&
-          (file.file as Blob).type &&
-          (file.file as Blob).type.startsWith("image/")
-        ) {
-          imageUrl = URL.createObjectURL(file.file as Blob)
-        }
-      }
+    //   // Try to get URL from blob or file only if they are images
+    //   if (!imageUrl) {
+    //     if (
+    //       file.blob &&
+    //       file.blob.type &&
+    //       file.blob.type.startsWith("image/")
+    //     ) {
+    //       imageUrl = URL.createObjectURL(file.blob)
+    //     } else if (
+    //       file.file &&
+    //       typeof file.file !== "string" &&
+    //       (file.file as Blob).type &&
+    //       (file.file as Blob).type.startsWith("image/")
+    //     ) {
+    //       imageUrl = URL.createObjectURL(file.file as Blob)
+    //     }
+    //   }
 
-      // Only render Image component if we have a valid image URL
-      if (imageUrl) {
-        return (
-          <div className="relative w-full h-32 sm:h-40 min-w-[50px]">
-            <Image
-              src={imageUrl}
-              alt={file.name}
-              fill
-              style={{ objectFit: "cover" }}
-              className="rounded-md"
-            />
-          </div>
-        )
-      }
-    }
+    //   // Only render Image component if we have a valid image URL
+    //   if (imageUrl) {
+    //     return (
+    //       <div className="relative w-full h-32 sm:h-40 min-w-[50px]">
+    //         <Image
+    //           src={imageUrl}
+    //           alt={file.name}
+    //           fill
+    //           style={{ objectFit: "cover" }}
+    //           className="rounded-md"
+    //         />
+    //       </div>
+    //     )
+    //   }
+    // }
 
     // Show file type icon and preview for non-image files
     return (

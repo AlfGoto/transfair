@@ -348,8 +348,8 @@ export function FileDownloader({
         try {
           await navigator.share({
             files: shareFiles,
-            title: "Share my images",
-            text: "Here are all my camera images!",
+            title: "Transfair",
+            text: "Here are all my images!",
           })
         } catch (error) {
           console.error("Error sharing images:", error)
