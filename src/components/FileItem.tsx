@@ -2,8 +2,10 @@
 
 import { memo, useState, useRef, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FilePreview } from "./FilePreview";
 import type { FileMetadata } from "@/app/[id]/page";
+import { Button } from "./ui/button";
+import { Download, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Progress } from "./ui/progress";
 
 interface FileWithProgress extends FileMetadata {
   blob?: Blob;
@@ -58,7 +60,7 @@ const FileItem = memo(
         objectUrlRef.current = getObjectUrl(file);
         setIsLoaded(true);
       }
-    }, [file.blob, file.id, getObjectUrl]);
+    }, [file.blob, file.id]);
 
     // Create a stable file object that won't change unless necessary properties change
     const stableFile = {
@@ -77,29 +79,54 @@ const FileItem = memo(
     };
 
     return (
-      <div className="relative">
-        <div
-          className="absolute top-6 left-6 z-10 dark:bg-gray-800 rounded-md p-1"
-          onClick={(e) => e.stopPropagation()} // Empêcher la propagation pour éviter les doubles clics
-        >
+      <div className="flex items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+        <div className="flex-shrink-0">
           <Checkbox
             id={`file-${file.id}`}
-            className={isSelected ? "bg-white p-[1px] border-none" : ""}
+            className={isSelected ? "bg-primary border-none" : ""}
             checked={isSelected}
             onCheckedChange={() => onToggleSelect(index)}
           />
         </div>
-        <div onClick={() => onToggleSelect(index)} className="cursor-pointer">
-          <FilePreview
-            file={{
-              ...stableFile,
-              // For image display, we need to provide a stable URL that won't change
-              imageUrl: objectUrlRef.current,
-            }}
-            onDownload={() => onDownloadSingle(file)}
-            onRetry={() => onRetry(file, index)}
-            showDownloadProgress={true}
-          />
+
+        <div className="flex-grow min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-medium truncate">{file.name}</span>
+            {file.status === "error" && (
+              <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
+            )}
+            {file.status === "complete" && (
+              <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+            )}
+          </div>
+
+          {file.status === "downloading" && (
+            <div className="mt-2">
+              <Progress value={file.progress} className="h-1" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex-shrink-0">
+          {file.status === "error" ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onRetry(file, index)}
+              className="text-destructive hover:text-destructive/90"
+            >
+              Retry
+            </Button>
+          ) : file.status === "complete" ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDownloadSingle(file)}
+              className="text-primary hover:text-primary/90"
+            >
+              <Download className="w-4 h-4" />
+            </Button>
+          ) : null}
         </div>
       </div>
     );

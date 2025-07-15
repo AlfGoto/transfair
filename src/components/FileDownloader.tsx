@@ -1,38 +1,37 @@
-"use client"
+"use client";
 
-import { useEffect, useState, useRef, useCallback, useMemo } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Loader2, Download } from "lucide-react"
-import JSZip from "jszip"
-import type { FileMetadata } from "@/app/[id]/page"
-import { FileItem, type FileWithProgress } from "./FileItem"
-import { ProgressBar } from "./ui/progress-bar"
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Loader2, Download } from "lucide-react";
+import JSZip from "jszip";
+import type { FileMetadata } from "@/app/[id]/page";
+import { FileItem, type FileWithProgress } from "./FileItem";
+import { ProgressBar } from "./ui/progress-bar";
 
 // Helper for deep comparison
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const useDeepCompareEffect = (effect: React.EffectCallback, deps: any[]) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ref = useRef<any[]>(deps)
+  const ref = useRef<any[]>(deps);
   if (!deps.every((val, i) => val === ref.current[i])) {
-    ref.current = deps
+    ref.current = deps;
   }
-  useEffect(effect, ref.current)
-}
+  useEffect(effect, ref.current);
+};
 
 export function FileDownloader({
   filesMetadata,
 }: {
-  filesMetadata: FileMetadata[]
+  filesMetadata: FileMetadata[];
 }) {
-  const [files, setFiles] = useState<FileWithProgress[]>([])
-  const [selectedFiles, setSelectedFiles] = useState<number[]>([])
-  const [isDownloading, setIsDownloading] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
-  const router = useRouter()
-  const downloadInProgress = useRef(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const progressRefs = useRef<{ progress: number }[]>([])
+  const [files, setFiles] = useState<FileWithProgress[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<number[]>([]);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const router = useRouter();
+  const downloadInProgress = useRef(false);
+  const progressRefs = useRef<{ progress: number }[]>([]);
 
   // Initialize files with deep comparison
   useDeepCompareEffect(() => {
@@ -41,95 +40,79 @@ export function FileDownloader({
         ...file,
         progress: 0,
         status: "pending",
-      })),
-    )
-    setIsMobile(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent))
-    progressRefs.current = filesMetadata.map(() => ({ progress: 0 }))
-  }, [filesMetadata])
+      }))
+    );
+    setIsMobile(/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+    progressRefs.current = filesMetadata.map(() => ({ progress: 0 }));
+  }, [filesMetadata]);
 
   // Throttled progress updates
   const updateProgress = useCallback((index: number, progress: number) => {
-    progressRefs.current[index].progress = progress
+    progressRefs.current[index].progress = progress;
     // Batch updates every 100ms
     setTimeout(() => {
       setFiles((prev) =>
         prev.map((f, i) =>
-          i === index
-            ? { ...f, progress: progressRefs.current[i].progress }
-            : f,
-        ),
-      )
-    }, 100)
-  }, [])
+          i === index ? { ...f, progress: progressRefs.current[i].progress } : f
+        )
+      );
+    }, 100);
+  }, []);
 
   // Download handler
   const downloadFile = useCallback(
     async (file: FileWithProgress, index: number) => {
       if (file.status === "downloading" || file.status === "complete")
-        return null
+        return null;
 
       try {
         setFiles((prev) =>
           prev.map((f, i) =>
-            i === index ? { ...f, status: "downloading" } : f,
-          ),
-        )
+            i === index ? { ...f, status: "downloading" } : f
+          )
+        );
 
-        const response = await fetch(file.url)
-        if (!response.ok) throw new Error(`Failed to fetch ${file.name}`)
+        const response = await fetch(file.url);
+        if (!response.ok) throw new Error(`Failed to fetch ${file.name}`);
 
         const contentLength =
-          Number(response.headers.get("content-length")) || 0
-        const contentType = response.headers.get("content-type") || ""
-        const reader = response.body?.getReader()
+          Number(response.headers.get("content-length")) || 0;
+        const contentType = response.headers.get("content-type") || "";
+        const reader = response.body?.getReader();
 
-        if (!reader) throw new Error("ReadableStream not supported")
+        if (!reader) throw new Error("ReadableStream not supported");
 
-        let receivedLength = 0
-        const chunks: Uint8Array[] = []
-        let lastReportedProgress = 0
+        let receivedLength = 0;
+        const chunks: Uint8Array[] = [];
+        let lastReportedProgress = 0;
 
         while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
+          const { done, value } = await reader.read();
+          if (done) break;
 
-          chunks.push(value)
-          receivedLength += value.length
+          chunks.push(value);
+          receivedLength += value.length;
 
           if (contentLength) {
-            const progress = Math.round((receivedLength / contentLength) * 100)
+            const progress = Math.round((receivedLength / contentLength) * 100);
             // Only update progress if it's increased by at least 10%
             if (progress >= lastReportedProgress + 10 || progress === 100) {
-              updateProgress(index, progress)
-              lastReportedProgress = progress
+              updateProgress(index, progress);
+              lastReportedProgress = progress;
             }
           }
         }
 
-        const chunksAll = new Uint8Array(receivedLength)
-        let position = 0
+        const chunksAll = new Uint8Array(receivedLength);
+        let position = 0;
         for (const chunk of chunks) {
-          chunksAll.set(chunk, position)
-          position += chunk.length
+          chunksAll.set(chunk, position);
+          position += chunk.length;
         }
 
         const blob = new Blob([chunksAll], {
           type: contentType || file.type || "application/octet-stream",
-        })
-
-        let preview: string | undefined = undefined
-        if (
-          blob.type.startsWith("text/") ||
-          blob.type.includes("json") ||
-          /\.(md|txt|csv|xml|yml|yaml|json|js|ts|html|css)$/i.test(file.name)
-        ) {
-          try {
-            const text = await blob.text()
-            preview = text.slice(0, 500) + (text.length > 500 ? "..." : "")
-          } catch (e) {
-            console.error("Failed to generate preview:", e)
-          }
-        }
+        });
 
         setFiles((prev) =>
           prev.map((f, i) =>
@@ -140,227 +123,229 @@ export function FileDownloader({
                   type: blob.type,
                   progress: 100,
                   status: "complete",
-                  preview,
                 }
-              : f,
-          ),
-        )
+              : f
+          )
+        );
 
-        return blob
+        return blob;
       } catch (error) {
-        console.error(`Error downloading file ${file.name}:`, error)
+        console.error(`Error downloading file ${file.name}:`, error);
         setFiles((prev) =>
-          prev.map((f, i) => (i === index ? { ...f, status: "error" } : f)),
-        )
-        return null
+          prev.map((f, i) => (i === index ? { ...f, status: "error" } : f))
+        );
+        return null;
       }
     },
-    [updateProgress],
-  )
+    [updateProgress]
+  );
 
   // Download scheduler
   const startDownloads = useCallback(() => {
-    if (downloadInProgress.current || files.length === 0) return
+    if (downloadInProgress.current || files.length === 0) return;
 
-    downloadInProgress.current = true
-    let inFlight = 0
-    let nextIdx = 0
-    const total = files.length
+    downloadInProgress.current = true;
+    let inFlight = 0;
+    let nextIdx = 0;
+    const total = files.length;
 
     const schedule = () => {
-      if (!downloadInProgress.current) return
+      if (!downloadInProgress.current) return;
 
       while (inFlight < 3 && nextIdx < total) {
-        const idx = nextIdx++
-        const file = files[idx]
+        const idx = nextIdx++;
+        const file = files[idx];
 
-        inFlight++
+        inFlight++;
         downloadFile(file, idx).finally(() => {
-          inFlight--
+          inFlight--;
           if (inFlight === 0 && nextIdx >= total) {
-            downloadInProgress.current = false
+            downloadInProgress.current = false;
           } else {
-            schedule()
+            schedule();
           }
-        })
+        });
       }
-    }
+    };
 
-    schedule()
-  }, [files, downloadFile])
+    schedule();
+  }, [files, downloadFile]);
 
   // Trigger downloads once when files are ready
   useEffect(() => {
     if (files.length > 0 && !downloadInProgress.current) {
-      startDownloads()
+      startDownloads();
     }
-  }, [files.length, startDownloads])
+  }, [files.length, startDownloads]);
 
   const toggleFileSelection = useCallback((index: number) => {
     setSelectedFiles((prev) =>
-      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index],
-    )
-  }, [])
+      prev.includes(index) ? prev.filter((i) => i !== index) : [...prev, index]
+    );
+  }, []);
 
-  const downloadSingleFile = useCallback((file: FileWithProgress) => {
-    if (!file.blob) return
+  const downloadSingleFile = useCallback(
+    async (file: FileWithProgress) => {
+      if (!file.blob) return;
 
-    const url = URL.createObjectURL(file.blob)
-    const a = document.createElement("a")
-    a.style.display = "none"
-    a.href = url
-    a.download = file.name
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
-  }, [])
+      if (isMobile && navigator.share && file.blob.type.startsWith("image/")) {
+        try {
+          setIsDownloading(true);
+          await navigator.share({
+            files: [new File([file.blob], file.name, { type: file.blob.type })],
+            title: "Share file",
+            text: "Share your file",
+          });
+        } catch (error) {
+          console.error("Error sharing:", error);
+          // Fallback to regular download if sharing fails
+          const url = URL.createObjectURL(file.blob);
+          const a = document.createElement("a");
+          a.style.display = "none";
+          a.href = url;
+          a.download = file.name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+        } finally {
+          setIsDownloading(false);
+        }
+      } else {
+        const url = URL.createObjectURL(file.blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = file.name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }
+    },
+    [isMobile]
+  );
 
   const downloadSelectedFiles = async () => {
-    setIsDownloading(true)
+    setIsDownloading(true);
     try {
       const selectedFilesData = files.filter((_, index) =>
-        selectedFiles.includes(index),
-      )
+        selectedFiles.includes(index)
+      );
 
       if (selectedFilesData.length === 1) {
-        downloadSingleFile(selectedFilesData[0])
-        setIsDownloading(false)
-        return
+        await downloadSingleFile(selectedFilesData[0]);
+        setIsDownloading(false);
+        return;
       }
 
-      const zip = new JSZip()
-      const folderName = selectedFilesData[0]?.name.split(".")[0] || "download"
-      const folder = zip.folder(folderName)
+      if (
+        isMobile &&
+        navigator.share &&
+        selectedFilesData.every((file) => file.blob?.type.startsWith("image/"))
+      ) {
+        try {
+          const fileList = selectedFilesData
+            .filter((file) => file.blob)
+            .map(
+              (file) =>
+                new File([file.blob!], file.name, { type: file.blob!.type })
+            );
 
-      if (!folder) {
-        console.error("Failed to create folder in zip")
-        setIsDownloading(false)
-        return
+          await navigator.share({
+            files: fileList,
+            title: "Share files",
+            text: "Share your files",
+          });
+        } catch (error) {
+          console.error("Error sharing:", error);
+          // Fallback to zip download
+          await downloadAsZip(selectedFilesData);
+        }
+      } else {
+        await downloadAsZip(selectedFilesData);
       }
-
-      for (const file of selectedFilesData) {
-        if (!file.blob) continue
-        folder.file(file.name, await file.blob.arrayBuffer())
-      }
-
-      const zipBlob = await zip.generateAsync({
-        type: "blob",
-        compression: "DEFLATE",
-        compressionOptions: { level: 6 },
-      })
-
-      const zipUrl = URL.createObjectURL(zipBlob)
-      const a = document.createElement("a")
-      a.style.display = "none"
-      a.href = zipUrl
-      a.download = `${folderName}.zip`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      setTimeout(() => URL.revokeObjectURL(zipUrl), 5000)
     } catch (error) {
-      console.error("Error downloading files:", error)
+      console.error("Error downloading files:", error);
     } finally {
-      setIsDownloading(false)
+      setIsDownloading(false);
     }
-  }
+  };
 
   const downloadAllFiles = async () => {
-    setIsDownloading(true)
+    setIsDownloading(true);
     try {
-      if (files.length === 1) {
-        downloadSingleFile(files[0])
-        setIsDownloading(false)
-        return
+      if (
+        isMobile &&
+        navigator.share &&
+        files.every((file) => file.blob?.type.startsWith("image/"))
+      ) {
+        try {
+          const fileList = files
+            .filter((file) => file.blob)
+            .map(
+              (file) =>
+                new File([file.blob!], file.name, { type: file.blob!.type })
+            );
+
+          await navigator.share({
+            files: fileList,
+            title: "Share files",
+            text: "Share your files",
+          });
+        } catch (error) {
+          console.error("Error sharing:", error);
+          // Fallback to zip download
+          await downloadAsZip(files);
+        }
+      } else {
+        await downloadAsZip(files);
       }
-
-      const zip = new JSZip()
-      const folderName = files[0]?.name.split(".")[0] || "download"
-      const folder = zip.folder(folderName)
-
-      if (!folder) {
-        console.error("Failed to create folder in zip")
-        setIsDownloading(false)
-        return
-      }
-
-      for (const file of files) {
-        if (!file.blob) continue
-        folder.file(file.name, await file.blob.arrayBuffer())
-      }
-
-      const zipBlob = await zip.generateAsync({
-        type: "blob",
-        compression: "DEFLATE",
-        compressionOptions: { level: 6 },
-      })
-
-      const zipUrl = URL.createObjectURL(zipBlob)
-      const a = document.createElement("a")
-      a.style.display = "none"
-      a.href = zipUrl
-      a.download = `${folderName}.zip`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      setTimeout(() => URL.revokeObjectURL(zipUrl), 5000)
     } catch (error) {
-      console.error("Error downloading files:", error)
+      console.error("Error downloading files:", error);
     } finally {
-      setIsDownloading(false)
+      setIsDownloading(false);
     }
-  }
+  };
+
+  const downloadAsZip = async (filesToDownload: FileWithProgress[]) => {
+    const zip = new JSZip();
+    const folderName = filesToDownload[0]?.name.split(".")[0] || "download";
+    const folder = zip.folder(folderName);
+
+    if (!folder) {
+      console.error("Failed to create folder in zip");
+      return;
+    }
+
+    for (const file of filesToDownload) {
+      if (!file.blob) continue;
+      folder.file(file.name, await file.blob.arrayBuffer());
+    }
+
+    const zipBlob = await zip.generateAsync({
+      type: "blob",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 },
+    });
+
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = url;
+    a.download = `${folderName}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  };
 
   const handleRetry = useCallback(
     (file: FileWithProgress, index: number) => {
-      downloadFile(file, index)
+      downloadFile(file, index);
     },
-    [downloadFile],
-  )
-
-  const shareAllImages = async () => {
-    setIsLoading(true)
-    try {
-      const imageFilesData = files.filter(
-        (file) =>
-          file.blob &&
-          file.status === "complete" &&
-          file.type &&
-          file.type.startsWith("image/"),
-      )
-
-      if (imageFilesData.length === 0) {
-        console.warn("No images to share.")
-        setIsLoading(false)
-        return
-      }
-
-      const shareFiles = imageFilesData.map(
-        (file) => new File([file.blob!], file.name, { type: file.type }),
-      )
-
-      if (
-        navigator.share &&
-        navigator.canShare &&
-        navigator.canShare({ files: shareFiles })
-      ) {
-        try {
-          await navigator.share({
-            files: shareFiles,
-            title: "Transfair",
-            text: "Here are all my images!",
-          })
-        } catch (error) {
-          console.error("Error sharing images:", error)
-        }
-      } else {
-        console.warn("File sharing not supported on this device.")
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }
+    [downloadFile]
+  );
 
   const { totalProgress, totalProgressBuffer, showProgressBar } =
     useMemo(() => {
@@ -369,19 +354,19 @@ export function FileDownloader({
           totalProgress: 0,
           totalProgressBuffer: 0,
           showProgressBar: false,
-        }
+        };
       }
 
-      const total = files.reduce((sum, file) => sum + file.progress, 0)
-      const activeCount = files.filter((f) => f.progress !== 0).length
-      const totalProgress = (total / (files.length * 100)) * 100
+      const total = files.reduce((sum, file) => sum + file.progress, 0);
+      const activeCount = files.filter((f) => f.progress !== 0).length;
+      const totalProgress = (total / (files.length * 100)) * 100;
 
       return {
         totalProgress,
         totalProgressBuffer: (activeCount / files.length) * 100,
         showProgressBar: totalProgress < 100,
-      }
-    }, [files])
+      };
+    }, [files]);
 
   const memoizedFiles = useMemo(
     () =>
@@ -396,14 +381,8 @@ export function FileDownloader({
           onRetry={handleRetry}
         />
       )),
-    [
-      files,
-      selectedFiles,
-      toggleFileSelection,
-      downloadSingleFile,
-      handleRetry,
-    ],
-  )
+    [files, selectedFiles, toggleFileSelection, downloadSingleFile, handleRetry]
+  );
 
   if (isDownloading) {
     return (
@@ -416,7 +395,7 @@ export function FileDownloader({
           Please wait while your files are being prepared...
         </p>
       </div>
-    )
+    );
   }
 
   return (
@@ -432,50 +411,84 @@ export function FileDownloader({
           className="my-5"
         />
       ) : (
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-          <Button
-            onClick={downloadAllFiles}
-            disabled={files.length === 0 || files.every((f) => !f.blob)}
-            className="w-full sm:w-auto"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Download All Files
-          </Button>
-          <Button
-            onClick={downloadSelectedFiles}
-            disabled={
-              selectedFiles.length === 0 ||
-              selectedFiles.every((index) => !files[index]?.blob)
-            }
-            className="w-full sm:w-auto"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Download Selected Files
-          </Button>
-
-          {isMobile &&
-            files.some((file) => file.blob?.type?.startsWith("image/")) && (
+        <div className="flex flex-col gap-4 w-full max-w-4xl mx-auto p-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <div className="flex items-center gap-2">
               <Button
-                onClick={shareAllImages}
-                className="w-full sm:w-auto"
-                disabled={isLoading}
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setSelectedFiles(
+                    selectedFiles.length === files.length
+                      ? []
+                      : files.map((_, i) => i)
+                  )
+                }
               >
-                {isLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="mr-2 h-4 w-4" />
-                )}
-                {isLoading ? "Loading..." : "Save Images"}
+                {selectedFiles.length === files.length
+                  ? "Deselect All"
+                  : "Select All"}
               </Button>
-            )}
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {selectedFiles.length} selected
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Download All Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={downloadAllFiles}
+                disabled={files.length === 0 || files.every((f) => !f.blob)}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {isMobile ? "Share All" : "Download All"}
+              </Button>
+
+              {/* Download Selected Button */}
+              {selectedFiles.length > 0 && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={downloadSelectedFiles}
+                  disabled={
+                    isDownloading ||
+                    selectedFiles.every((index) => !files[index]?.blob)
+                  }
+                >
+                  {isDownloading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {isMobile ? "Sharing..." : "Downloading..."}
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      {isMobile ? "Share Selected" : "Download Selected"}
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {files.map((file, index) => (
+              <FileItem
+                key={file.id}
+                file={file}
+                index={index}
+                isSelected={selectedFiles.includes(index)}
+                onToggleSelect={toggleFileSelection}
+                onDownloadSingle={downloadSingleFile}
+                onRetry={downloadFile}
+              />
+            ))}
+          </div>
         </div>
       )}
 
-      <div className="mt-6">
-        <div className="grid grid-cols-1 min-[400px]:grid-cols-2 md:grid-cols-3 gap-4">
-          {memoizedFiles}
-        </div>
-      </div>
       <Button
         onClick={() => router.push("/")}
         className="mt-6 w-full sm:w-auto"
@@ -483,5 +496,5 @@ export function FileDownloader({
         Upload More Files
       </Button>
     </div>
-  )
+  );
 }
