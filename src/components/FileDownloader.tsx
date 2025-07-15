@@ -9,17 +9,6 @@ import type { FileMetadata } from "@/app/[id]/page";
 import { FileItem, type FileWithProgress } from "./FileItem";
 import { ProgressBar } from "./ui/progress-bar";
 
-// Helper for deep comparison
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const useDeepCompareEffect = (effect: React.EffectCallback, deps: any[]) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ref = useRef<any[]>(deps);
-  if (!deps.every((val, i) => val === ref.current[i])) {
-    ref.current = deps;
-  }
-  useEffect(effect, ref.current);
-};
-
 export function FileDownloader({
   filesMetadata,
 }: {
@@ -33,8 +22,8 @@ export function FileDownloader({
   const downloadInProgress = useRef(false);
   const progressRefs = useRef<{ progress: number }[]>([]);
 
-  // Initialize files with deep comparison
-  useDeepCompareEffect(() => {
+  // Initialize files and check for mobile device
+  useEffect(() => {
     setFiles(
       filesMetadata.map((file) => ({
         ...file,
@@ -340,13 +329,6 @@ export function FileDownloader({
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   };
 
-  const handleRetry = useCallback(
-    (file: FileWithProgress, index: number) => {
-      downloadFile(file, index);
-    },
-    [downloadFile]
-  );
-
   const { totalProgress, totalProgressBuffer, showProgressBar } =
     useMemo(() => {
       if (files.length === 0) {
@@ -357,39 +339,22 @@ export function FileDownloader({
         };
       }
 
-      const total = files.reduce((sum, file) => sum + file.progress, 0);
-      const activeCount = files.filter((f) => f.progress !== 0).length;
-      const totalProgress = (total / (files.length * 100)) * 100;
+      const total = files.reduce((acc, file) => acc + file.progress, 0);
+      const progress = Math.round(total / files.length);
 
       return {
-        totalProgress,
-        totalProgressBuffer: (activeCount / files.length) * 100,
-        showProgressBar: totalProgress < 100,
+        totalProgress: progress,
+        totalProgressBuffer: progress + 10,
+        showProgressBar: progress > 0 && progress < 100,
       };
     }, [files]);
 
-  const memoizedFiles = useMemo(
-    () =>
-      files.map((file, index) => (
-        <FileItem
-          key={file.id}
-          file={file}
-          index={index}
-          isSelected={selectedFiles.includes(index)}
-          onToggleSelect={toggleFileSelection}
-          onDownloadSingle={downloadSingleFile}
-          onRetry={handleRetry}
-        />
-      )),
-    [files, selectedFiles, toggleFileSelection, downloadSingleFile, handleRetry]
-  );
-
   if (isDownloading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] py-12">
+      <div className="flex flex-col items-center justify-center w-full min-h-[50vh] py-12">
         <Loader2 className="w-12 h-12 sm:w-16 sm:h-16 animate-spin mb-4" />
         <h2 className="text-xl sm:text-2xl font-bold mb-2">
-          Preparing Download
+          {isMobile ? "Preparing Share" : "Preparing Download"}
         </h2>
         <p className="text-muted-foreground text-center mb-4">
           Please wait while your files are being prepared...

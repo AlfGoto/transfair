@@ -16,7 +16,7 @@ export function Header() {
   const router = useRouter();
 
   return (
-    <header className="sticky top-0 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50">
+    <header className="sticky top-0 w-full border-b border-gray-200 dark:border-gray-800 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50 shadow-sm">
       <div className="container flex h-16 items-center justify-between px-8">
         <div
           className="relative flex items-center gap-2 cursor-pointer"

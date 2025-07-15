@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useRef, useEffect } from "react";
+import { memo, useRef, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { FileMetadata } from "@/app/[id]/page";
 import { Button } from "./ui/button";
@@ -52,31 +52,22 @@ const FileItem = memo(
   }: FileItemProps) {
     // Store the object URL in a ref to prevent it from changing between renders
     const objectUrlRef = useRef<string | null>(null);
-    const [isLoaded, setIsLoaded] = useState(false);
 
     // Get or create the object URL once when the blob is available
     useEffect(() => {
       if (file.blob && !objectUrlRef.current) {
         objectUrlRef.current = getObjectUrl(file);
-        setIsLoaded(true);
       }
-    }, [file.blob, file.id]);
 
-    // Create a stable file object that won't change unless necessary properties change
-    const stableFile = {
-      id: file.id,
-      name: file.name,
-      type: file.type,
-      size: file.blob?.size,
-      preview: file.preview,
-      status: file.status,
-      progress: file.progress,
-      // Only include the blob reference if we're still downloading
-      // This prevents re-renders once the file is complete
-      blob: file.status === "complete" && isLoaded ? undefined : file.blob,
-      // Add a stable URL property that won't change between renders
-      url: objectUrlRef.current,
-    };
+      // Cleanup function to revoke object URL when component unmounts
+      // or when file/blob changes
+      return () => {
+        if (objectUrlRef.current) {
+          URL.revokeObjectURL(objectUrlRef.current);
+          objectUrlRef.current = null;
+        }
+      };
+    }, [file]);
 
     return (
       <div className="flex items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow">
