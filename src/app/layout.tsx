@@ -22,6 +22,11 @@ export default function RootLayout({
     <Providers>
       <html lang="en" className="h-full">
         <meta name="google-adsense-account" content="ca-pub-9853522416934473" />
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9853522416934473"
+          crossorigin="anonymous"
+        ></script>
         <link rel="icon" href="/icon.png" type="image/png" />
         <body
           className={`${inter.className} flex min-h-full flex-col w-full bg-background text-foreground`}

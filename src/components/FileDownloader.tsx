@@ -408,7 +408,7 @@ export function FileDownloader({
                 disabled={files.length === 0 || files.every((f) => !f.blob)}
               >
                 <Download className="mr-2 h-4 w-4" />
-                {isMobile ? "Share All" : "Download All"}
+                Download All
               </Button>
 
               {/* Download Selected Button */}
@@ -425,12 +425,12 @@ export function FileDownloader({
                   {isDownloading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {isMobile ? "Sharing..." : "Downloading..."}
+                      Downloading...
                     </>
                   ) : (
                     <>
                       <Download className="mr-2 h-4 w-4" />
-                      {isMobile ? "Share Selected" : "Download Selected"}
+                      Download Selected
                     </>
                   )}
                 </Button>
