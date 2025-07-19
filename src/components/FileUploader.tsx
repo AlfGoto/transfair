@@ -77,7 +77,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
 
       return updatedFiles;
     });
-  }, []);
+  }, [t]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {

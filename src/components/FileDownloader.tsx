@@ -215,7 +215,7 @@ export function FileDownloader({
         setTimeout(() => URL.revokeObjectURL(url), 5000);
       }
     },
-    [isMobile]
+    [isMobile, t]
   );
 
   const downloadSelectedFiles = async () => {

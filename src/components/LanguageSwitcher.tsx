@@ -22,7 +22,7 @@ export function LanguageSwitcher() {
 
   const switchLanguage = (locale: string) => {
     // Use next-intl's router which handles locale switching automatically
-    router.push(pathname, { locale: locale as any });
+    router.push(pathname, { locale });
   };
 
   const currentLanguage =
