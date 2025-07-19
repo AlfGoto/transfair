@@ -30,7 +30,7 @@ async function getFilesMetadata(id: string): Promise<FileMetadata[]> {
 export default async function Page({
   params,
 }: {
-  params: { id: string; locale: string };
+  params: Promise<{ locale: string; id: string }>;
 }) {
   const { id } = await params;
   const filesMetadata = await getFilesMetadata(id);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession, signIn, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,6 +12,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { HelpCircle } from "lucide-react";
+import { Link } from "@/i18n/routing";
 
 export function Header() {
   const { data: session } = useSession();
@@ -21,13 +23,19 @@ export function Header() {
   return (
     <header className="sticky top-0 w-full border-b border-gray-200 dark:border-gray-800 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50 shadow-sm">
       <div className="container flex h-16 items-center justify-between px-8">
-        <div
-          className="relative flex items-center gap-2 cursor-pointer"
-          onClick={() => router.push("/")}
-        >
-          <div className="relative h-8 w-32 flex items-center">
+        <div className="relative flex items-center gap-2">
+          <div
+            className="relative h-8 w-32 flex items-center cursor-pointer"
+            onClick={() => router.push("/")}
+          >
             <span className="text-xl font-bold">{t("appName")}</span>
           </div>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/help" className="flex items-center gap-2">
+              <HelpCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">{t("help")}</span>
+            </Link>
+          </Button>
         </div>
 
         <div className="flex items-center gap-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "@/i18n/routing";
+import { useLocale } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,14 +18,13 @@ const languages = [
 export function LanguageSwitcher() {
   const router = useRouter();
   const pathname = usePathname();
+  const currentLocale = useLocale(); // Use proper next-intl hook
 
   const switchLanguage = (locale: string) => {
     // Use next-intl's router which handles locale switching automatically
-    router.push(pathname, { locale });
+    router.push(pathname, { locale: locale as any });
   };
 
-  // Get current locale from the pathname
-  const currentLocale = pathname.startsWith("/fr") ? "fr" : "en";
   const currentLanguage =
     languages.find((lang) => lang.code === currentLocale) || languages[0];
 

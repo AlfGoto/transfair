@@ -7,7 +7,7 @@ import { Upload, AlertCircle, Clipboard, Check, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useSession } from "next-auth/react";
 import { formatSize, isTextFile, readTextFile } from "@/lib/utils";
-import { useTranslations } from 'next-intl';
+import { useTranslations } from "next-intl";
 
 interface FileItem {
   id: string;
@@ -33,8 +33,8 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { data: session } = useSession();
-  const t = useTranslations('fileUploader');
-  const tCommon = useTranslations('common');
+  const t = useTranslations("fileUploader");
+  const tCommon = useTranslations("common");
 
   const totalSize = files.reduce((acc, file) => acc + file.size, 0);
   const isOverLimit = totalSize > MAX_SIZE;
@@ -70,7 +70,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
       );
 
       if (newTotalSize > MAX_SIZE) {
-        setError(t('totalSizeExceeded'));
+        setError(t("totalSizeExceeded"));
       } else {
         setError(null);
       }
@@ -184,7 +184,12 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
 
   const copyToClipboard = async () => {
     if (id) {
-      const linkToCopy = `${window.location.href}${id}`;
+      // Create clean URL without locale prefix
+      const baseUrl = `${window.location.protocol}//${window.location.host}`;
+      // Ensure base URL ends with "/" before appending the ID
+      const linkToCopy = baseUrl.endsWith("/")
+        ? `${baseUrl}${id}`
+        : `${baseUrl}/${id}`;
       try {
         await navigator.clipboard.writeText(linkToCopy);
         setIsCopied(true);
@@ -211,7 +216,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
           <Upload className="h-8 w-8 text-muted-foreground" />
           <div className="flex flex-col items-center gap-1">
             <p className="text-sm text-muted-foreground text-center">
-              {t('dragAndDrop')}
+              {t("dragAndDrop")}
             </p>
             <Input
               id="file"
@@ -238,7 +243,8 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
               isOverLimit ? "text-destructive" : "text-muted-foreground"
             }`}
           >
-            {totalSize !== 0 && `${t('totalSize')} : ${formatSize(totalSize, tCommon)} / 2Go`}
+            {totalSize !== 0 &&
+              `${t("totalSize")} : ${formatSize(totalSize, tCommon)} / 2Go`}
           </p>
         </div>
         <div className="w-full sm:w-auto">
@@ -247,7 +253,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
             disabled={files.length === 0 || isUploading || isOverLimit}
             className="w-full sm:w-auto min-w-[120px]"
           >
-            {isUploading ? tCommon('sending') : tCommon('send')}
+            {isUploading ? tCommon("sending") : tCommon("send")}
           </Button>
         </div>
       </div>
@@ -290,9 +296,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
           <Alert>
             <div className="flex items-center gap-4">
               <div className="flex-grow">
-                <AlertDescription>
-                  {t('filesReadyToShare')}
-                </AlertDescription>
+                <AlertDescription>{t("filesReadyToShare")}</AlertDescription>
               </div>
               <Button
                 variant="outline"
@@ -305,7 +309,9 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
                 ) : (
                   <Clipboard className="h-4 w-4" />
                 )}
-                <span className="ml-2">{isCopied ? tCommon('copied') : tCommon('copy')}</span>
+                <span className="ml-2">
+                  {isCopied ? tCommon("copied") : tCommon("copy")}
+                </span>
               </Button>
             </div>
           </Alert>

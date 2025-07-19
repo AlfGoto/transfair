@@ -8,11 +8,14 @@ export const routing = defineRouting({
   // Used when no locale matches
   defaultLocale: "en",
 
-  // Only show the locale prefix for non-default locales
+  // We use the as-needed strategy to avoid adding the locale prefix to the URL
+  // when the locale is the default locale
   localePrefix: "as-needed",
 });
 
+export type Locale = (typeof routing.locales)[number];
+
 // Lightweight wrappers around Next.js' navigation APIs
 // that will consider the routing configuration
-export const { Link, redirect, usePathname, useRouter } =
+export const { Link, redirect, usePathname, useRouter, getPathname } =
   createNavigation(routing);
