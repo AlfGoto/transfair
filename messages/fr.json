@@ -1,0 +1,51 @@
+{
+  "common": {
+    "appName": "Transfair",
+    "uploadFiles": "Téléverser des fichiers",
+    "downloadFiles": "Télécharger des fichiers",
+    "homepage": "Accueil",
+    "loading": "Chargement...",
+    "retry": "Réessayer",
+    "copy": "Copier",
+    "copied": "Copié !",
+    "send": "Envoyer",
+    "sending": "Envoi en cours...",
+    "downloading": "Téléchargement...",
+    "uploadMoreFiles": "Téléverser plus de fichiers",
+    "sizeBytes": "Octets",
+    "sizeKB": "Ko",
+    "sizeMB": "Mo"
+  },
+  "fileUploader": {
+    "dragAndDrop": "Glissez et déposez vos fichiers ici, ou cliquez pour sélectionner",
+    "totalSizeExceeded": "La taille totale des fichiers dépasse la limite de 2Go",
+    "totalSize": "Taille totale",
+    "filesReadyToShare": "Vos fichiers sont prêts à être partagés ! Copiez le lien pour le partager."
+  },
+  "fileDownloader": {
+    "filesDownloading": "Téléchargement des fichiers...",
+    "deselectAll": "Tout désélectionner",
+    "selectAll": "Tout sélectionner",
+    "selected": "sélectionné(s)",
+    "downloadAll": "Tout télécharger",
+    "downloadSelected": "Télécharger la sélection",
+    "preparingShare": "Préparation du partage",
+    "preparingDownload": "Préparation du téléchargement",
+    "preparingMessage": "Veuillez patienter pendant que vos fichiers sont préparés...",
+    "shareFile": "Partager le fichier",
+    "shareYourFile": "Partagez votre fichier",
+    "shareFiles": "Partager les fichiers",
+    "shareYourFiles": "Partagez vos fichiers"
+  },
+  "notFound": {
+    "title": "Lien de téléchargement introuvable",
+    "description": "Le lien de téléchargement que vous recherchez n'existe pas ou a expiré.",
+    "checkUrl": "Veuillez vérifier l'URL ou retourner à notre page d'accueil."
+  },
+  "auth": {
+    "signedInAs": "Connecté en tant que",
+    "signOut": "Se déconnecter",
+    "notSignedIn": "Non connecté",
+    "signIn": "Se connecter"
+  }
+}

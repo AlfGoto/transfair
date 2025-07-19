@@ -10,10 +10,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useTranslations } from "next-intl";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 export function Header() {
   const { data: session } = useSession();
   const router = useRouter();
+  const t = useTranslations("common");
 
   return (
     <header className="sticky top-0 w-full border-b border-gray-200 dark:border-gray-800 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50 shadow-sm">
@@ -23,9 +26,10 @@ export function Header() {
           onClick={() => router.push("/")}
         >
           <div className="relative h-8 w-32 flex items-center">
-            <span className="text-xl font-bold">Transfair</span>
+            <span className="text-xl font-bold">{t("appName")}</span>
           </div>
         </div>
+        <LanguageSwitcher />
 
         <div className="flex items-center gap-4">
           {session ? (

@@ -2,10 +2,11 @@
 
 import { memo, useRef, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import type { FileMetadata } from "@/app/[id]/page";
+import type { FileMetadata } from "@/app/[locale]/[id]/page";
 import { Button } from "./ui/button";
 import { Download, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Progress } from "./ui/progress";
+import { useTranslations } from "next-intl";
 
 interface FileWithProgress extends FileMetadata {
   blob?: Blob;
@@ -50,6 +51,7 @@ const FileItem = memo(
     onDownloadSingle,
     onRetry,
   }: FileItemProps) {
+    const tCommon = useTranslations("common");
     // Store the object URL in a ref to prevent it from changing between renders
     const objectUrlRef = useRef<string | null>(null);
 
@@ -106,7 +108,7 @@ const FileItem = memo(
               onClick={() => onRetry(file, index)}
               className="text-destructive hover:text-destructive/90"
             >
-              Retry
+              {tCommon("retry")}
             </Button>
           ) : file.status === "complete" ? (
             <Button

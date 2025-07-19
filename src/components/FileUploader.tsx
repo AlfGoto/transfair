@@ -7,6 +7,7 @@ import { Upload, AlertCircle, Clipboard, Check, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useSession } from "next-auth/react";
 import { formatSize, isTextFile, readTextFile } from "@/lib/utils";
+import { useTranslations } from 'next-intl';
 
 interface FileItem {
   id: string;
@@ -32,6 +33,8 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { data: session } = useSession();
+  const t = useTranslations('fileUploader');
+  const tCommon = useTranslations('common');
 
   const totalSize = files.reduce((acc, file) => acc + file.size, 0);
   const isOverLimit = totalSize > MAX_SIZE;
@@ -67,7 +70,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
       );
 
       if (newTotalSize > MAX_SIZE) {
-        setError("The total file size exceeds the limit of 2Go");
+        setError(t('totalSizeExceeded'));
       } else {
         setError(null);
       }
@@ -208,7 +211,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
           <Upload className="h-8 w-8 text-muted-foreground" />
           <div className="flex flex-col items-center gap-1">
             <p className="text-sm text-muted-foreground text-center">
-              Drag and drop your files here, or click to select
+              {t('dragAndDrop')}
             </p>
             <Input
               id="file"
@@ -235,7 +238,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
               isOverLimit ? "text-destructive" : "text-muted-foreground"
             }`}
           >
-            {totalSize !== 0 && `Total size : ${formatSize(totalSize)} / 2Go`}
+            {totalSize !== 0 && `${t('totalSize')} : ${formatSize(totalSize, tCommon)} / 2Go`}
           </p>
         </div>
         <div className="w-full sm:w-auto">
@@ -244,7 +247,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
             disabled={files.length === 0 || isUploading || isOverLimit}
             className="w-full sm:w-auto min-w-[120px]"
           >
-            {isUploading ? "Sending..." : "Send"}
+            {isUploading ? tCommon('sending') : tCommon('send')}
           </Button>
         </div>
       </div>
@@ -260,7 +263,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
                 <div className="flex items-center gap-2">
                   <span className="font-medium truncate">{file.name}</span>
                   <span className="text-sm text-muted-foreground">
-                    ({formatSize(file.size)})
+                    ({formatSize(file.size, tCommon)})
                   </span>
                 </div>
                 {file.preview && (
@@ -288,7 +291,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
             <div className="flex items-center gap-4">
               <div className="flex-grow">
                 <AlertDescription>
-                  Your files are ready to be shared! Copy the link to share it.
+                  {t('filesReadyToShare')}
                 </AlertDescription>
               </div>
               <Button
@@ -302,7 +305,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
                 ) : (
                   <Clipboard className="h-4 w-4" />
                 )}
-                <span className="ml-2">{isCopied ? "Copied!" : "Copy"}</span>
+                <span className="ml-2">{isCopied ? tCommon('copied') : tCommon('copy')}</span>
               </Button>
             </div>
           </Alert>

@@ -1,0 +1,51 @@
+{
+  "common": {
+    "appName": "Transfair",
+    "uploadFiles": "Upload Files",
+    "downloadFiles": "Download Files",
+    "homepage": "Homepage",
+    "loading": "Loading...",
+    "retry": "Retry",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "send": "Send",
+    "sending": "Sending...",
+    "downloading": "Downloading...",
+    "uploadMoreFiles": "Upload More Files",
+    "sizeBytes": "Bytes",
+    "sizeKB": "KB",
+    "sizeMB": "MB"
+  },
+  "fileUploader": {
+    "dragAndDrop": "Drag and drop your files here, or click to select",
+    "totalSizeExceeded": "The total file size exceeds the limit of 2Go",
+    "totalSize": "Total size",
+    "filesReadyToShare": "Your files are ready to be shared! Copy the link to share it."
+  },
+  "fileDownloader": {
+    "filesDownloading": "Files downloading...",
+    "deselectAll": "Deselect All",
+    "selectAll": "Select All",
+    "selected": "selected",
+    "downloadAll": "Download All",
+    "downloadSelected": "Download Selected",
+    "preparingShare": "Preparing Share",
+    "preparingDownload": "Preparing Download",
+    "preparingMessage": "Please wait while your files are being prepared...",
+    "shareFile": "Share file",
+    "shareYourFile": "Share your file",
+    "shareFiles": "Share files",
+    "shareYourFiles": "Share your files"
+  },
+  "notFound": {
+    "title": "Download Link Not Found",
+    "description": "The download link you're looking for doesn't exist or has expired.",
+    "checkUrl": "Please check the URL return to our homepage."
+  },
+  "auth": {
+    "signedInAs": "Signed in as",
+    "signOut": "Sign out",
+    "notSignedIn": "Not signed in",
+    "signIn": "Sign in"
+  }
+}

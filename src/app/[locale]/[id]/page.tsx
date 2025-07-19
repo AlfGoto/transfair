@@ -27,8 +27,12 @@ async function getFilesMetadata(id: string): Promise<FileMetadata[]> {
   return filesMetadata;
 }
 
-export default async function Page({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function Page({
+  params,
+}: {
+  params: { id: string; locale: string };
+}) {
+  const { id } = await params;
   const filesMetadata = await getFilesMetadata(id);
   return <FileDownloader filesMetadata={filesMetadata} />;
 }

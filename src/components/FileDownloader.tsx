@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Loader2, Download } from "lucide-react";
 import JSZip from "jszip";
-import type { FileMetadata } from "@/app/[id]/page";
+import type { FileMetadata } from "@/app/[locale]/[id]/page";
 import { FileItem, type FileWithProgress } from "./FileItem";
 import { ProgressBar } from "./ui/progress-bar";
+import { useTranslations } from "next-intl";
 
 export function FileDownloader({
   filesMetadata,
@@ -21,6 +22,8 @@ export function FileDownloader({
   const router = useRouter();
   const downloadInProgress = useRef(false);
   const progressRefs = useRef<{ progress: number }[]>([]);
+  const t = useTranslations("fileDownloader");
+  const tCommon = useTranslations("common");
 
   // Initialize files and check for mobile device
   useEffect(() => {
@@ -182,8 +185,8 @@ export function FileDownloader({
           setIsDownloading(true);
           await navigator.share({
             files: [new File([file.blob], file.name, { type: file.blob.type })],
-            title: "Share file",
-            text: "Share your file",
+            title: t("shareFile"),
+            text: t("shareYourFile"),
           });
         } catch (error) {
           console.error("Error sharing:", error);
@@ -279,8 +282,8 @@ export function FileDownloader({
 
           await navigator.share({
             files: fileList,
-            title: "Share files",
-            text: "Share your files",
+            title: t("shareFiles"),
+            text: t("shareYourFiles"),
           });
         } catch (error) {
           console.error("Error sharing:", error);
@@ -354,10 +357,10 @@ export function FileDownloader({
       <div className="flex flex-col items-center justify-center w-full min-h-[50vh] py-12">
         <Loader2 className="w-12 h-12 sm:w-16 sm:h-16 animate-spin mb-4" />
         <h2 className="text-xl sm:text-2xl font-bold mb-2">
-          {isMobile ? "Preparing Share" : "Preparing Download"}
+          {isMobile ? t("preparingShare") : t("preparingDownload")}
         </h2>
         <p className="text-muted-foreground text-center mb-4">
-          Please wait while your files are being prepared...
+          {t("preparingMessage")}
         </p>
       </div>
     );
@@ -365,12 +368,12 @@ export function FileDownloader({
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-      <h1 className="text-2xl font-bold mb-4">Download Files</h1>
+      <h1 className="text-2xl font-bold mb-4">{tCommon("downloadFiles")}</h1>
       {showProgressBar ? (
         <ProgressBar
           value={totalProgress}
           bufferValue={totalProgressBuffer}
-          text={"Files downloading..."}
+          text={t("filesDownloading")}
           color="bg-zinc-800"
           bufferColor="bg-zinc-400"
           className="my-5"
@@ -391,11 +394,11 @@ export function FileDownloader({
                 }
               >
                 {selectedFiles.length === files.length
-                  ? "Deselect All"
-                  : "Select All"}
+                  ? t("deselectAll")
+                  : t("selectAll")}
               </Button>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {selectedFiles.length} selected
+                {selectedFiles.length} {t("selected")}
               </span>
             </div>
 
@@ -408,7 +411,7 @@ export function FileDownloader({
                 disabled={files.length === 0 || files.every((f) => !f.blob)}
               >
                 <Download className="mr-2 h-4 w-4" />
-                Download All
+                {t("downloadAll")}
               </Button>
 
               {/* Download Selected Button */}
@@ -425,12 +428,12 @@ export function FileDownloader({
                   {isDownloading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Downloading...
+                      {tCommon("downloading")}
                     </>
                   ) : (
                     <>
                       <Download className="mr-2 h-4 w-4" />
-                      Download Selected
+                      {t("downloadSelected")}
                     </>
                   )}
                 </Button>
@@ -458,7 +461,7 @@ export function FileDownloader({
         onClick={() => router.push("/")}
         className="mt-6 w-full sm:w-auto"
       >
-        Upload More Files
+        {tCommon("uploadMoreFiles")}
       </Button>
     </div>
   );
