@@ -1,8 +1,7 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
-import { Globe } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,24 +19,11 @@ export function LanguageSwitcher() {
   const pathname = usePathname();
 
   const switchLanguage = (locale: string) => {
-    // Get current locale to avoid unnecessary navigation
-    const currentLocale = pathname.startsWith("/fr") ? "fr" : "en";
-
-    // Don't navigate if already on the target locale
-    if (currentLocale === locale) return;
-
-    // With localePrefix: 'as-needed', English (default) has no prefix, French has /fr
-    if (locale === "en") {
-      // For English, remove /fr prefix if present
-      const newPath = pathname.replace(/^\/fr/, "") || "/";
-      router.push(newPath);
-    } else if (locale === "fr") {
-      // For French, add /fr prefix if not present
-      const newPath = `/fr${pathname}`;
-      router.push(newPath);
-    }
+    // Use next-intl's router which handles locale switching automatically
+    router.push(pathname, { locale });
   };
 
+  // Get current locale from the pathname
   const currentLocale = pathname.startsWith("/fr") ? "fr" : "en";
   const currentLanguage =
     languages.find((lang) => lang.code === currentLocale) || languages[0];
@@ -46,7 +32,6 @@ export function LanguageSwitcher() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="flex items-center gap-2">
-          <Globe className="h-4 w-4" />
           <span>{currentLanguage.flag}</span>
           <span className="hidden sm:inline">{currentLanguage.name}</span>
         </Button>

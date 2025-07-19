@@ -29,9 +29,9 @@ export function Header() {
             <span className="text-xl font-bold">{t("appName")}</span>
           </div>
         </div>
-        <LanguageSwitcher />
 
         <div className="flex items-center gap-4">
+          <LanguageSwitcher />
           {session ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -11,7 +11,6 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
   title: {
-    template: "%s | 3F",
     default: "Transfair",
   },
   description: "A simple file upload and download application",
@@ -27,7 +26,7 @@ export default async function RootLayout({
   // Await params before using its properties
   const { locale } = await params;
   // Ensure that the incoming `locale` is valid
-  if (!locales.includes(locale as any)) {
+  if (!locales.includes(locale as "en" | "fr")) {
     notFound();
   }
 

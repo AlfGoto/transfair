@@ -1,25 +1,13 @@
 import { getRequestConfig } from "next-intl/server";
-import { headers } from "next/headers";
-import { locales, defaultLocale } from "./config";
+import { routing } from "./routing";
 
-export default getRequestConfig(async () => {
-  // Determine the locale from the URL pathname
-  const headersList = await headers();
-  const pathname =
-    headersList.get("x-pathname") || headersList.get("x-invoke-path") || "/";
+export default getRequestConfig(async ({ requestLocale }) => {
+  // This typically corresponds to the `[locale]` segment
+  let locale = await requestLocale;
 
-  // Extract locale from pathname
-  let locale = defaultLocale;
-
-  // Check if pathname starts with a supported locale
-  for (const supportedLocale of locales) {
-    if (
-      pathname === `/${supportedLocale}` ||
-      pathname.startsWith(`/${supportedLocale}/`)
-    ) {
-      locale = supportedLocale;
-      break;
-    }
+  // Ensure that a supported locale is used
+  if (!locale || !routing.locales.includes(locale as any)) {
+    locale = routing.defaultLocale;
   }
 
   return {
