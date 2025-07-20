@@ -22,7 +22,9 @@
     "dragAndDrop": "Glissez et déposez vos fichiers ici, ou cliquez pour sélectionner",
     "totalSizeExceeded": "La taille totale des fichiers dépasse la limite de 2Go",
     "totalSize": "Taille totale",
-    "filesReadyToShare": "Vos fichiers sont prêts à être partagés ! Copiez le lien pour le partager."
+    "filesReadyToShare": "Vos fichiers sont prêts à être partagés ! Copiez le lien pour le partager.",
+    "uploadError": "Échec de l'envoi des fichiers. Veuillez réessayer.",
+    "unauthorizedError": "Vous devez être connecté et avoir accès à cette version du site web."
   },
   "fileDownloader": {
     "filesDownloading": "Téléchargement des fichiers...",

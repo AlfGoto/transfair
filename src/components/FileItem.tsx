@@ -86,7 +86,7 @@ const FileItem = memo(
           <div className="flex items-center gap-2">
             <span className="font-medium truncate">{file.name}</span>
             {file.status === "error" && (
-              <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
+              <AlertCircle className="w-4 h-4 text-[hsl(var(--destructive))] flex-shrink-0" />
             )}
             {file.status === "complete" && (
               <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
@@ -106,7 +106,7 @@ const FileItem = memo(
               variant="ghost"
               size="sm"
               onClick={() => onRetry(file, index)}
-              className="text-destructive hover:text-destructive/90"
+              className="text-[hsl(var(--destructive))] hover:text-[hsl(var(--destructive))]/90"
             >
               {tCommon("retry")}
             </Button>

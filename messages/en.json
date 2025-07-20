@@ -22,7 +22,9 @@
     "dragAndDrop": "Drag and drop your files here, or click to select",
     "totalSizeExceeded": "The total file size exceeds the limit of 2Go",
     "totalSize": "Total size",
-    "filesReadyToShare": "Your files are ready to be shared! Copy the link to share it."
+    "filesReadyToShare": "Your files are ready to be shared! Copy the link to share it.",
+    "uploadError": "Failed to send files. Please try again.",
+    "unauthorizedError": "You need to be logged in and have access to this version of the website."
   },
   "fileDownloader": {
     "filesDownloading": "Files downloading...",

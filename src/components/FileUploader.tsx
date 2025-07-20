@@ -39,45 +39,48 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
   const totalSize = files.reduce((acc, file) => acc + file.size, 0);
   const isOverLimit = totalSize > MAX_SIZE;
 
-  const handleFiles = useCallback(async (newFiles: FileList | File[]) => {
-    const filePromises = Array.from(newFiles).map(async (file) => {
-      const fileItem: FileItem = {
-        id: crypto.randomUUID(),
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        file: file,
-      };
+  const handleFiles = useCallback(
+    async (newFiles: FileList | File[]) => {
+      const filePromises = Array.from(newFiles).map(async (file) => {
+        const fileItem: FileItem = {
+          id: crypto.randomUUID(),
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          file: file,
+        };
 
-      if (isTextFile(file)) {
-        try {
-          fileItem.preview = await readTextFile(file, TEXT_PREVIEW_LENGTH);
-        } catch (error) {
-          console.error("Error reading text file:", error);
+        if (isTextFile(file)) {
+          try {
+            fileItem.preview = await readTextFile(file, TEXT_PREVIEW_LENGTH);
+          } catch (error) {
+            console.error("Error reading text file:", error);
+          }
         }
-      }
 
-      return fileItem;
-    });
+        return fileItem;
+      });
 
-    const processedFiles = await Promise.all(filePromises);
+      const processedFiles = await Promise.all(filePromises);
 
-    setFiles((prevFiles) => {
-      const updatedFiles = [...prevFiles, ...processedFiles];
-      const newTotalSize = updatedFiles.reduce(
-        (acc, file) => acc + file.size,
-        0
-      );
+      setFiles((prevFiles) => {
+        const updatedFiles = [...prevFiles, ...processedFiles];
+        const newTotalSize = updatedFiles.reduce(
+          (acc, file) => acc + file.size,
+          0
+        );
 
-      if (newTotalSize > MAX_SIZE) {
-        setError(t("totalSizeExceeded"));
-      } else {
-        setError(null);
-      }
+        if (newTotalSize > MAX_SIZE) {
+          setError(t("totalSizeExceeded"));
+        } else {
+          setError(null);
+        }
 
-      return updatedFiles;
-    });
-  }, [t]);
+        return updatedFiles;
+      });
+    },
+    [t]
+  );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -139,6 +142,15 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
         credentials: "include",
         headers: myHeaders,
       });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          setError(t("unauthorizedError"));
+          return;
+        }
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
       const { urls, id } = await res.json();
 
       await Promise.all(
@@ -175,7 +187,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
 
       return;
     } catch (error) {
-      setError("Failed to send files. Please try again.");
+      setError(t("uploadError"));
       console.error(error);
     } finally {
       setIsUploading(false);
@@ -240,7 +252,9 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
         <div className="flex-1">
           <p
             className={`text-sm ${
-              isOverLimit ? "text-destructive" : "text-muted-foreground"
+              isOverLimit
+                ? "text-[hsl(var(--destructive))]"
+                : "text-muted-foreground"
             }`}
           >
             {totalSize !== 0 &&
