@@ -19,6 +19,7 @@ export function Header() {
   const { data: session } = useSession();
   const router = useRouter();
   const t = useTranslations("common");
+  const tAuth = useTranslations("auth");
 
   return (
     <header className="sticky top-0 w-full border-b border-gray-200 dark:border-gray-800 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-50 shadow-sm">
@@ -61,12 +62,12 @@ export function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuItem onClick={() => signOut()}>
-                  SignOut
+                  {tAuth("signOut")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button onClick={() => signIn()}>Sign in</Button>
+            <Button onClick={() => signIn()}>{tAuth("signIn")}</Button>
           )}
         </div>
       </div>

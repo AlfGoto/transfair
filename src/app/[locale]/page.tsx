@@ -10,7 +10,8 @@ export default function Home() {
   return (
     <SessionProvider>
       <div className="max-w-4xl mx-auto mt-10">
-        <h1 className="text-2xl font-bold mb-4">{t("uploadFiles")}</h1>
+        <h1 className="text-2xl font-bold mb-2">{t("uploadFiles")}</h1>
+        <p className="text-gray-600 dark:text-gray-400 mb-6">{t("uploadSubtitle")}</p>
         <FileUploader apiUrl={String(process.env.NEXT_PUBLIC_API_TRANSFER)} />
       </div>
     </SessionProvider>

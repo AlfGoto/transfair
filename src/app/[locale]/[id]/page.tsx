@@ -1,4 +1,5 @@
 import { FileDownloader } from "@/components/FileDownloader";
+import { Locale } from "@/i18n/config";
 import { notFound } from "next/navigation";
 
 export interface FileMetadata {
@@ -30,7 +31,7 @@ async function getFilesMetadata(id: string): Promise<FileMetadata[]> {
 export default async function Page({
   params,
 }: {
-  params: Promise<{ locale: string; id: string }>;
+  params: Promise<{ locale: Locale; id: string }>;
 }) {
   const { id } = await params;
   const filesMetadata = await getFilesMetadata(id);
