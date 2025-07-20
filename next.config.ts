@@ -48,16 +48,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // SEO-friendly redirects
-  async redirects() {
-    return [
-      {
-        source: "/",
-        destination: "/en",
-        permanent: true,
-      },
-    ];
-  },
 };
 
 export default withNextIntl(nextConfig);
