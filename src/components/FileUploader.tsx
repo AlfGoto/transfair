@@ -252,9 +252,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
         <div className="flex-1">
           <p
             className={`text-sm ${
-              isOverLimit
-                ? "text-[hsl(var(--destructive))]"
-                : "text-muted-foreground"
+              isOverLimit ? "text-destructive" : "text-muted-foreground"
             }`}
           >
             {totalSize !== 0 &&
@@ -277,7 +275,7 @@ export function FileUploader({ apiUrl }: FileUploaderProps) {
           {files.map((file) => (
             <div
               key={file.id}
-              className="flex items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+              className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="flex-grow min-w-0">
                 <div className="flex items-center gap-2">

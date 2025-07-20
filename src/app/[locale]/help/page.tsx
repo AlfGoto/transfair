@@ -1,5 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/routing";
+import { generateHreflangAlternates, generateCanonicalUrl } from "@/lib/seo-utils";
+import { Locale } from "@/i18n/config";
 import {
   ArrowLeft,
   Upload,
@@ -23,14 +25,34 @@ export async function generateMetadata({
 }: {
   params: { locale: string };
 }) {
+  const localeString = (await params).locale;
+  const locale = localeString as Locale;
   const t = await getTranslations({
-    locale: (await params).locale,
-    namespace: "help",
+    locale,
+    namespace: "seo",
   });
+  
+  const hreflangAlternates = generateHreflangAlternates('https://transfair.dev', '/help');
+  const canonicalUrl = generateCanonicalUrl(locale, '/help');
 
   return {
-    title: t("title"),
-    description: t("introduction"),
+    title: t('helpTitle'),
+    description: t('helpDescription'),
+    keywords: t('helpKeywords'),
+    openGraph: {
+      title: t('helpOgTitle'),
+      description: t('helpOgDescription'),
+      type: 'article',
+      url: canonicalUrl,
+    },
+    alternates: {
+      canonical: canonicalUrl,
+      languages: hreflangAlternates,
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
   };
 }
 

@@ -1,6 +1,8 @@
 import { FileDownloader } from "@/components/FileDownloader";
 import { Locale } from "@/i18n/config";
 import { notFound } from "next/navigation";
+import { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 
 export interface FileMetadata {
   id: string;
@@ -26,6 +28,47 @@ async function getFilesMetadata(id: string): Promise<FileMetadata[]> {
   );
 
   return filesMetadata;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: Locale; id: string }>;
+}): Promise<Metadata> {
+  const { locale, id } = await params;
+  const t = await getTranslations({ locale, namespace: "seo" });
+
+  try {
+    const filesMetadata = await getFilesMetadata(id);
+    const fileCount = filesMetadata.length;
+    const fileNames = filesMetadata.map((file) => file.name).join(", ");
+
+    return {
+      title: t("downloadTitle", { count: fileCount }),
+      description: t("downloadDescription", { count: fileCount, fileNames }),
+      robots: {
+        index: false, // Don't index temporary download pages
+        follow: false,
+        noarchive: true,
+        nosnippet: true,
+      },
+      openGraph: {
+        title: t("downloadOgTitle"),
+        description: t("downloadOgDescription", { count: fileCount }),
+        type: "website",
+      },
+    };
+  } catch {
+    // If files are not found or expired, return basic metadata
+    return {
+      title: t("downloadNotFoundTitle"),
+      description: t("downloadNotFoundDescription"),
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
 }
 
 export default async function Page({

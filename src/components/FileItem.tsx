@@ -72,7 +72,7 @@ const FileItem = memo(
     }, [file]);
 
     return (
-      <div className="flex items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow">
         <div className="flex-shrink-0">
           <Checkbox
             id={`file-${file.id}`}
